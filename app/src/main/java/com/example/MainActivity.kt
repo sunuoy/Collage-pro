@@ -47,7 +47,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -700,40 +703,57 @@ fun CreatorScreen(
 
                 HorizontalDivider(color = Color(0xFFCAC4D0), thickness = 1.dp)
 
-                // EXPORT ACTIONS
-                Row(
+                // EXPORT & SHARE ACTIONS SEPARATED
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Button(
-                        onClick = { viewModel.exportAndShare("JPG", context) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("export_jpg_btn")
-                    ) {
-                        Icon(Icons.Filled.Share, contentDescription = "Share", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Export JPG", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    Button(
-                        onClick = { viewModel.exportAndShare("PDF", context) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFEADDFF),
-                            contentColor = Color(0xFF21005D)
+                    // DOWNLOAD SECTION
+                    Text(
+                        text = "LOCAL EXPORT (SAVE TO DEVICE)",
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6750A4),
+                            letterSpacing = 1.sp
                         ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("export_pdf_btn")
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(Icons.Outlined.PictureAsPdf, contentDescription = "PDF", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Export PDF", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = { viewModel.exportAndShare("JPG", context, shareAfterExport = false) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3EDF7), contentColor = Color(0xFF6750A4)),
+                            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_jpg_btn")
+                        ) {
+                            Icon(Icons.Filled.Save, contentDescription = "Save JPG", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Save JPG", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = { viewModel.exportAndShare("PDF", context, shareAfterExport = false) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFF3EDF7),
+                                contentColor = Color(0xFF6750A4)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_pdf_btn")
+                        ) {
+                            Icon(Icons.Outlined.PictureAsPdf, contentDescription = "Save PDF", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Save PDF", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -801,6 +821,51 @@ fun CreatorScreen(
                 )
             }
 
+            // Always-Visible Watermark Quick Status & Toggle Control
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFFEF7FF))
+                    .border(1.dp, Color(0xFF6750A4).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (viewModel.showWatermark) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                        contentDescription = "Watermark Visibility",
+                        tint = if (viewModel.showWatermark) Color(0xFF6750A4) else Color.Gray,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Collage Watermark: ${if (viewModel.showWatermark) "Visible" else "Hidden"}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (viewModel.showWatermark) Color(0xFF6750A4) else Color(0xFF49454F)
+                        )
+                        Text(
+                            text = "\"${viewModel.watermarkText}\"",
+                            fontSize = 10.sp,
+                            color = Color.Gray,
+                            fontStyle = FontStyle.Italic
+                        )
+                    }
+                }
+                
+                Switch(
+                    checked = viewModel.showWatermark,
+                    onCheckedChange = { viewModel.showWatermark = it },
+                    modifier = Modifier
+                        .scale(0.8f)
+                        .testTag("main_watermark_toggle")
+                )
+            }
+
             // Guide instruction banner
             Text(
                 text = "Long press cells to Swap easily • Tap cells to replace content",
@@ -811,27 +876,182 @@ fun CreatorScreen(
 
             // Cell control settings if a slot was manually selected
             viewModel.selectedSlotIndex?.let { index ->
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFFF3EDF7))
-                        .border(1.dp, Color(0xFFCAC4D0), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .border(1.dp, Color(0xFF6750A4).copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                        .padding(16.dp)
                 ) {
-                    Text(text = "Cell #${index + 1} Selected", color = Color(0xFF1D1B20), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Row {
-                        IconButton(onClick = { viewModel.rotateSlot(index) }) {
-                            Icon(Icons.Filled.RotateRight, "Rotate Slot", tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
+                    // Header Area
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Edit, contentDescription = "Edit Card", tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Adjust Slot #${index + 1} Media",
+                                color = Color(0xFF1D1B20),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        IconButton(onClick = {
-                            viewModel.setImageInSlot(index, viewModel.presetOptions[index % viewModel.presetOptions.size])
-                            viewModel.selectedSlotIndex = null
-                        }) {
-                            Icon(Icons.Filled.ClearAll, "Reset Placeholder", tint = Color(0xFFBA1A1A), modifier = Modifier.size(18.dp))
+                        Row {
+                            // Reset Button
+                            TextButton(
+                                onClick = {
+                                    viewModel.setZoomInSlot(index, 1f)
+                                    viewModel.setPanXInSlot(index, 0f)
+                                    viewModel.setPanYInSlot(index, 0f)
+                                    viewModel.updateRotationInSlot(index, 0f)
+                                }
+                            ) {
+                                Text("Reset", fontSize = 11.sp, color = Color(0xFFBA1A1A), fontWeight = FontWeight.Bold)
+                            }
+                            IconButton(onClick = { viewModel.selectedSlotIndex = null }) {
+                                Icon(Icons.Filled.Close, "Dismiss Action Bar", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0xFFCAC4D0).copy(alpha = 0.5f), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+
+                    val zoomVal = viewModel.activeZooms.getOrElse(index) { 1f }
+                    val panXVal = viewModel.activePanX.getOrElse(index) { 0f }
+                    val panYVal = viewModel.activePanY.getOrElse(index) { 0f }
+                    val rotVal = viewModel.activeRotations.getOrElse(index) { 0f }
+
+                    // Slider 1: ZOOM SCALE
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.ZoomIn, "Zoom scale", modifier = Modifier.size(14.dp), tint = Color(0xFF49454F))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Zoom & Scale", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
+                            }
+                            Text(text = String.format("%.2fx", zoomVal), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6750A4))
+                        }
+                        Slider(
+                            value = zoomVal,
+                            onValueChange = { viewModel.setZoomInSlot(index, it) },
+                            valueRange = 1f..4f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF6750A4),
+                                activeTrackColor = Color(0xFF6750A4)
+                            ),
+                            modifier = Modifier.height(30.dp).testTag("adjust_zoom_slider_$index")
+                        )
+                    }
+
+                    // Slider 2: PAN HORIZONTAL (CROP)
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Horizontal Crop Offset (Pan X)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
+                            Text(text = String.format("%d%%", (panXVal * 100).toInt()), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6750A4))
+                        }
+                        Slider(
+                            value = panXVal,
+                            onValueChange = { viewModel.setPanXInSlot(index, it) },
+                            valueRange = -1f..1f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF6750A4),
+                                activeTrackColor = Color(0xFF6750A4)
+                            ),
+                            modifier = Modifier.height(30.dp).testTag("adjust_panx_slider_$index")
+                        )
+                    }
+
+                    // Slider 3: PAN VERTICAL (CROP)
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Vertical Crop Offset (Pan Y)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
+                            Text(text = String.format("%d%%", (panYVal * 100).toInt()), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6750A4))
+                        }
+                        Slider(
+                            value = panYVal,
+                            onValueChange = { viewModel.setPanYInSlot(index, it) },
+                            valueRange = -1f..1f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF6750A4),
+                                activeTrackColor = Color(0xFF6750A4)
+                            ),
+                            modifier = Modifier.height(30.dp).testTag("adjust_pany_slider_$index")
+                        )
+                    }
+
+                    // Slider 4: SMOOTH ROTATION (0 to 360 degrees)
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.RotateRight, "Rotate index", modifier = Modifier.size(14.dp), tint = Color(0xFF49454F))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Rotation Degrees", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
+                            }
+                            Text(text = String.format("%.0f°", rotVal), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6750A4))
+                        }
+                        Slider(
+                            value = rotVal,
+                            onValueChange = { viewModel.updateRotationInSlot(index, it) },
+                            valueRange = 0f..360f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF6750A4),
+                                activeTrackColor = Color(0xFF6750A4)
+                            ),
+                            modifier = Modifier.height(30.dp).testTag("adjust_rot_slider_$index")
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.setImageInSlot(index, viewModel.presetOptions[index % viewModel.presetOptions.size])
+                                viewModel.setZoomInSlot(index, 1f)
+                                viewModel.setPanXInSlot(index, 0f)
+                                viewModel.setPanYInSlot(index, 0f)
+                                viewModel.updateRotationInSlot(index, 0f)
+                                viewModel.selectedSlotIndex = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3EDF7), contentColor = Color(0xFFBA1A1A)),
+                            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).padding(end = 6.dp)
+                        ) {
+                            Text("Reset Placeholder", fontSize = 11.sp)
+                        }
+
+                        Button(
+                            onClick = { viewModel.selectedSlotIndex = null },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f).padding(start = 6.dp)
+                        ) {
+                            Text("Done Adjusting", fontSize = 11.sp)
                         }
                     }
                 }
@@ -932,11 +1152,11 @@ fun CollageWorkspaceCanvas(
                     .background(Color(0xFFF3EDF7))
                     .border(
                         BorderStroke(
-                            width = if (isSelected) 3.dp else 1.dp,
+                            width = if (isSelected || isDragging) 3.dp else if (viewModel.showBorders) 1.dp else 0.dp,
                             color = when {
                                 isSelected -> Color(0xFF6750A4)
                                 isDragging -> Color(0xFF6750A4)
-                                else -> Color(0xFFCAC4D0)
+                                else -> if (viewModel.showBorders) Color(0xFFCAC4D0) else Color.Transparent
                             }
                         ),
                         shape = RoundedCornerShape(4.dp)
@@ -1019,21 +1239,30 @@ fun CollageWorkspaceCanvas(
                             .fillMaxSize()
                             .graphicsLayer {
                                 rotationZ = viewModel.activeRotations.getOrElse(index) { 0f }
+                                val zoom = viewModel.activeZooms.getOrElse(index) { 1f }
+                                scaleX = zoom
+                                scaleY = zoom
+                                val panXVal = viewModel.activePanX.getOrElse(index) { 0f }
+                                val panYVal = viewModel.activePanY.getOrElse(index) { 0f }
+                                translationX = panXVal * this.size.width
+                                translationY = panYVal * this.size.height
                             }
                     )
                 }
 
                 // Small cell index tag label
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(4.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .size(18.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "${index + 1}", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                if (viewModel.showCellIndices) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(4.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .size(18.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "${index + 1}", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 // If this is the active anchor cell during the swap loop
@@ -1056,7 +1285,7 @@ fun CollageWorkspaceCanvas(
         }
 
         // Live professional customizable watermark overlay inside the preview canvas!
-        if (viewModel.watermarkText.isNotBlank()) {
+        if (viewModel.showWatermark && viewModel.watermarkText.isNotBlank()) {
             val watermarkColor = when (viewModel.watermarkColorName) {
                 "Black" -> Color.Black
                 "Gold" -> Color(0xFFD4AF37)
@@ -1138,6 +1367,49 @@ fun GridsTabContent(viewModel: MainViewModel) {
                     Text("$size Cells")
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "DISPLAY PREFERENCES", fontSize = 11.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Show Borders", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+                Text("Show divider separators between photos", fontSize = 11.sp, color = Color(0xFF49454F))
+            }
+            Switch(
+                checked = viewModel.showBorders,
+                onCheckedChange = { viewModel.showBorders = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Color(0xFF6750A4)
+                ),
+                modifier = Modifier.testTag("show_borders_switch")
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Show Cell Numbers", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+                Text("Display index tags in preview editor", fontSize = 11.sp, color = Color(0xFF49454F))
+            }
+            Switch(
+                checked = viewModel.showCellIndices,
+                onCheckedChange = { viewModel.showCellIndices = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = Color(0xFF6750A4)
+                ),
+                modifier = Modifier.testTag("show_cell_indices_switch")
+            )
         }
     }
 }
@@ -1227,18 +1499,39 @@ fun FiltersTabContent(viewModel: MainViewModel) {
 @Composable
 fun WatermarkTabContent(viewModel: MainViewModel) {
     Column {
-        Text(text = "PROFESSIONAL WATERMARK", fontSize = 12.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = "PROFESSIONAL WATERMARK", fontSize = 12.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Show", fontSize = 11.sp, color = Color(0xFF49454F), modifier = Modifier.padding(end = 4.dp))
+                Switch(
+                    checked = viewModel.showWatermark,
+                    onCheckedChange = { viewModel.showWatermark = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF6750A4)
+                    ),
+                    modifier = Modifier.testTag("show_watermark_switch")
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = viewModel.watermarkText,
             onValueChange = { viewModel.watermarkText = it },
-            label = { Text("Watermark branding text", color = Color(0xFF49454F)) },
+            enabled = viewModel.showWatermark,
+            label = { Text("Watermark branding text", color = if (viewModel.showWatermark) Color(0xFF49454F) else Color(0xFFCAC4D0)) },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedTextColor = Color(0xFF1D1B20),
                 unfocusedTextColor = Color(0xFF1D1B20),
+                disabledTextColor = Color(0xFFCAC4D0),
                 focusedBorderColor = Color(0xFF6750A4),
                 unfocusedBorderColor = Color(0xFFCAC4D0),
+                disabledBorderColor = Color(0xFFEADDFF).copy(alpha = 0.5f),
                 focusedLabelColor = Color(0xFF6750A4),
                 unfocusedLabelColor = Color(0xFF49454F)
             ),
@@ -1251,15 +1544,22 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
         Spacer(modifier = Modifier.height(12.dp))
 
         // Opacity slider
-        Text(text = "Opacity: ${(viewModel.watermarkOpacity * 100).toInt()}%", color = Color(0xFF1D1B20), fontSize = 12.sp)
+        Text(
+            text = "Opacity: ${(viewModel.watermarkOpacity * 100).toInt()}%",
+            color = if (viewModel.showWatermark) Color(0xFF1D1B20) else Color(0xFFCAC4D0),
+            fontSize = 12.sp
+        )
         Slider(
             value = viewModel.watermarkOpacity,
             onValueChange = { viewModel.watermarkOpacity = it },
+            enabled = viewModel.showWatermark,
             valueRange = 0f..1f,
             colors = SliderDefaults.colors(
                 thumbColor = Color(0xFF6750A4),
                 activeTrackColor = Color(0xFF6750A4),
-                inactiveTrackColor = Color(0xFFCAC4D0)
+                inactiveTrackColor = Color(0xFFCAC4D0),
+                disabledThumbColor = Color(0xFFCAC4D0),
+                disabledActiveTrackColor = Color(0xFFEADDFF).copy(alpha = 0.5f)
             ),
             modifier = Modifier.testTag("watermark_opacity_slider")
         )
@@ -1267,22 +1567,37 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
         Spacer(modifier = Modifier.height(8.dp))
 
         // Badge selectors
-        Text(text = "Select Branding Hue:", color = Color(0xFF49454F), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text = "Select Branding Hue:",
+            color = if (viewModel.showWatermark) Color(0xFF49454F) else Color(0xFFCAC4D0),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
         Row(
             modifier = Modifier.padding(top = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             listOf("White", "Black", "Gold", "Accent").forEach { color ->
                 val isSelected = viewModel.watermarkColorName == color
+                val background = when {
+                    !viewModel.showWatermark -> Color(0xFFF3EDF7).copy(alpha = 0.5f)
+                    isSelected -> Color(0xFF6750A4)
+                    else -> Color(0xFFF3EDF7)
+                }
+                val textColor = when {
+                    !viewModel.showWatermark -> Color(0xFFCAC4D0)
+                    isSelected -> Color.White
+                    else -> Color(0xFF49454F)
+                }
                 Text(
                     text = color,
-                    color = if (isSelected) Color.White else Color(0xFF49454F),
+                    color = textColor,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (isSelected) Color(0xFF6750A4) else Color(0xFFF3EDF7))
-                        .clickable { viewModel.watermarkColorName = color }
+                        .background(background)
+                        .clickable(enabled = viewModel.showWatermark) { viewModel.watermarkColorName = color }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                         .testTag("watermark_color_$color")
                 )

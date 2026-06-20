@@ -1,6 +1,7 @@
 package com.example.viewmodel
 
 import android.app.Application
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -9,8 +10,11 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +66,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var watermarkText by mutableStateOf("Collage Pro")
     var watermarkColorName by mutableStateOf("White") // White, Black, Gold, Custom Accent
     var watermarkOpacity by mutableStateOf(0.7f) // 0f to 1f
+    var showWatermark by mutableStateOf(false)
+    var showBorders by mutableStateOf(true)
+    var showCellIndices by mutableStateOf(true)
 
     // Current Project ID
     var activeProjectId by mutableStateOf<Int?>(null)
@@ -71,6 +78,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var activeImages by mutableStateOf<List<String>>(emptyList())
     // Individual slot rotations (in degrees: 0, 90, 180, 270)
     var activeRotations by mutableStateOf<List<Float>>(emptyList())
+    // Individual slot zooms (scaling factor 1f to 4f)
+    var activeZooms by mutableStateOf<List<Float>>(emptyList())
+    // Individual slot pan / crop crop offset values (-1f to 1f)
+    var activePanX by mutableStateOf<List<Float>>(emptyList())
+    var activePanY by mutableStateOf<List<Float>>(emptyList())
 
     // Selected Slot for swapping / custom actions
     var selectedSlotIndex by mutableStateOf<Int?>(null)
@@ -125,6 +137,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         activeImages = generatedPresets
         activeRotations = List(layoutSize) { 0f }
+        activeZooms = List(layoutSize) { 1f }
+        activePanX = List(layoutSize) { 0f }
+        activePanY = List(layoutSize) { 0f }
     }
 
     fun loadProject(project: CollageProject) {
@@ -151,6 +166,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         activeImages = filledImages
         activeRotations = List(gridLayoutSize) { 0f }
+        activeZooms = List(gridLayoutSize) { 1f }
+        activePanX = List(gridLayoutSize) { 0f }
+        activePanY = List(gridLayoutSize) { 0f }
         currentScreen = "creator"
     }
 
@@ -205,8 +223,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             updatedRotations[index1] = updatedRotations[index2]
             updatedRotations[index2] = tempRot
 
+            val updatedZooms = activeZooms.toMutableList()
+            val tempZoom = if (index1 in updatedZooms.indices) updatedZooms[index1] else 1f
+            if (index1 in updatedZooms.indices && index2 in updatedZooms.indices) {
+                updatedZooms[index1] = updatedZooms[index2]
+                updatedZooms[index2] = tempZoom
+            }
+
+            val updatedPanX = activePanX.toMutableList()
+            val tempPanX = if (index1 in updatedPanX.indices) updatedPanX[index1] else 0f
+            if (index1 in updatedPanX.indices && index2 in updatedPanX.indices) {
+                updatedPanX[index1] = updatedPanX[index2]
+                updatedPanX[index2] = tempPanX
+            }
+
+            val updatedPanY = activePanY.toMutableList()
+            val tempPanY = if (index1 in updatedPanY.indices) updatedPanY[index1] else 0f
+            if (index1 in updatedPanY.indices && index2 in updatedPanY.indices) {
+                updatedPanY[index1] = updatedPanY[index2]
+                updatedPanY[index2] = tempPanY
+            }
+
             activeImages = updatedImages
             activeRotations = updatedRotations
+            activeZooms = updatedZooms
+            activePanX = updatedPanX
+            activePanY = updatedPanY
             selectedSlotIndex = null
         }
     }
@@ -217,6 +259,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val updated = activeImages.toMutableList()
             updated[index] = uriString
             activeImages = updated
+        }
+    }
+
+    fun setZoomInSlot(index: Int, zoom: Float) {
+        if (index in activeZooms.indices) {
+            val updated = activeZooms.toMutableList()
+            updated[index] = zoom
+            activeZooms = updated
+        } else if (index in 0 until gridLayoutSize) {
+            val list = activeZooms.toMutableList()
+            while (list.size <= index) {
+                list.add(1f)
+            }
+            list[index] = zoom
+            activeZooms = list
+        }
+    }
+
+    fun setPanXInSlot(index: Int, panX: Float) {
+        if (index in activePanX.indices) {
+            val updated = activePanX.toMutableList()
+            updated[index] = panX
+            activePanX = updated
+        } else if (index in 0 until gridLayoutSize) {
+            val list = activePanX.toMutableList()
+            while (list.size <= index) {
+                list.add(0f)
+            }
+            list[index] = panX
+            activePanX = list
+        }
+    }
+
+    fun setPanYInSlot(index: Int, panY: Float) {
+        if (index in activePanY.indices) {
+            val updated = activePanY.toMutableList()
+            updated[index] = panY
+            activePanY = updated
+        } else if (index in 0 until gridLayoutSize) {
+            val list = activePanY.toMutableList()
+            while (list.size <= index) {
+                list.add(0f)
+            }
+            list[index] = panY
+            activePanY = list
+        }
+    }
+
+    fun updateRotationInSlot(index: Int, rotate: Float) {
+        if (index in activeRotations.indices) {
+            val updated = activeRotations.toMutableList()
+            updated[index] = rotate
+            activeRotations = updated
+        } else if (index in 0 until gridLayoutSize) {
+            val list = activeRotations.toMutableList()
+            while (list.size <= index) {
+                list.add(0f)
+            }
+            list[index] = rotate
+            activeRotations = list
         }
     }
 
@@ -289,8 +391,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return "${prefix}_${dateString}_$colorCode.$extension"
     }
 
-    // Export JPG / PDF and trigger Android share-sheet with the true content byte stream!
-    fun exportAndShare(format: String, context: Context) {
+    // Export JPG / PDF and save locally, optionally triggering Android share-sheet with the true content byte stream!
+    fun exportAndShare(format: String, context: Context, shareAfterExport: Boolean = false) {
         viewModelScope.launch(Dispatchers.Default) {
             _shareFileProgress.value = "Generating $format file..."
             try {
@@ -391,18 +493,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             try {
                                 val loadedBitmap = loadBitmapFromUri(context, Uri.parse(indexInPreset), collageSize / 2)
                                 if (loadedBitmap != null) {
-                                    // Rotate-aware rendering
+                                    // Center Crop + custom Zoom + custom Pan offsets + rotation rendering inside clipped cell boundary
                                     val rotation = activeRotations.getOrElse(i) { 0f }
+                                    val TW = rect.right - rect.left
+                                    val TH = rect.bottom - rect.top
+                                    
+                                    val scale = maxOf(TW / loadedBitmap.width.toFloat(), TH / loadedBitmap.height.toFloat())
+                                    val userZoom = activeZooms.getOrElse(i) { 1f }
+                                    val finalScale = scale * userZoom
+                                    
+                                    val transX = rect.left + (TW - loadedBitmap.width.toFloat() * finalScale) / 2f
+                                    val transY = rect.top + (TH - loadedBitmap.height.toFloat() * finalScale) / 2f
+                                    val panX = activePanX.getOrElse(i) { 0f } * TW
+                                    val panY = activePanY.getOrElse(i) { 0f } * TH
+
                                     val matrix = android.graphics.Matrix()
-                                    matrix.postScale(
-                                        (rect.right - rect.left) / loadedBitmap.width.toFloat(),
-                                        (rect.bottom - rect.top) / loadedBitmap.height.toFloat()
-                                    )
+                                    matrix.postScale(finalScale, finalScale)
+                                    matrix.postTranslate(transX + panX, transY + panY)
+
                                     if (rotation != 0f) {
-                                        matrix.postRotate(rotation, (rect.right - rect.left) / 2f, (rect.bottom - rect.top) / 2f)
+                                        matrix.postRotate(rotation, rect.left + TW / 2f, rect.top + TH / 2f)
                                     }
-                                    matrix.postTranslate(rect.left, rect.top)
+
+                                    canvas.save()
+                                    canvas.clipRect(rect.left, rect.top, rect.right, rect.bottom)
                                     canvas.drawBitmap(loadedBitmap, matrix, paint)
+                                    canvas.restore()
                                 } else {
                                     // Fallback text indicator if image file cannot be parsed or permissions expired
                                     designPaint.color = android.graphics.Color.LTGRAY
@@ -416,17 +532,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         }
 
                         // Draw thin elegant separator block lines
-                        val borderPaint = Paint().apply {
-                            color = android.graphics.Color.parseColor("#1e1e24")
-                            style = Paint.Style.STROKE
-                            strokeWidth = 6f
+                        if (showBorders) {
+                            val borderPaint = Paint().apply {
+                                color = android.graphics.Color.parseColor("#1e1e24")
+                                style = Paint.Style.STROKE
+                                strokeWidth = 6f
+                            }
+                            canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, borderPaint)
                         }
-                        canvas.drawRect(rect.left, rect.top, rect.right, rect.bottom, borderPaint)
                     }
                 }
 
                 // Render customizable professional watermarking overlay
-                if (watermarkText.isNotBlank()) {
+                if (showWatermark && watermarkText.isNotBlank()) {
                     val textPaint = Paint().apply {
                         isAntiAlias = true
                         typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT_BOLD, android.graphics.Typeface.BOLD)
@@ -456,6 +574,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     context.getExternalFilesDir(Environment.DIRECTORY_PICTURES) ?: context.filesDir
                 }
+                try {
+                    localFolder.mkdirs()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
                 val localFile = File(localFolder, safeFileName)
 
                 val compressionQuality = if (highQualityExport) 95 else 75
@@ -480,6 +603,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
+
+                    // Save to public Downloads via MediaStore on Android 10+ or via Environment public storage on older Androids
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val resolver = context.contentResolver
+                            val contentValues = ContentValues().apply {
+                                put(MediaStore.MediaColumns.DISPLAY_NAME, safeFileName)
+                                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/CollageProStudio")
+                                put(MediaStore.MediaColumns.IS_PENDING, 1)
+                            }
+                            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                            if (uri != null) {
+                                resolver.openOutputStream(uri).use { out ->
+                                    if (out != null) {
+                                        pdfDocument.writeTo(out)
+                                    }
+                                }
+                                contentValues.clear()
+                                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                                resolver.update(uri, contentValues, null, null)
+                                MediaScannerConnection.scanFile(context, arrayOf(uri.toString()), null, null)
+                            }
+                        } else {
+                            val pubDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                            val collageFolder = File(pubDir, "CollageProStudio")
+                            collageFolder.mkdirs()
+                            val targetFile = File(collageFolder, safeFileName)
+                            FileOutputStream(targetFile).use { out ->
+                                pdfDocument.writeTo(out)
+                            }
+                            MediaScannerConnection.scanFile(context, arrayOf(targetFile.absolutePath), null, null)
+                        }
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
                     
                     pdfDocument.close()
                 } else {
@@ -496,11 +655,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
+
+                    // Save to public gallery via MediaStore on Android 10+ or via Environment public storage on older Androids
+                    try {
+                        val resolver = context.contentResolver
+                        val contentValues = ContentValues().apply {
+                            put(MediaStore.MediaColumns.DISPLAY_NAME, safeFileName)
+                            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/CollageProStudio")
+                                put(MediaStore.MediaColumns.IS_PENDING, 1)
+                            }
+                        }
+                        val imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                        if (imageUri != null) {
+                            resolver.openOutputStream(imageUri).use { out ->
+                                if (out != null) {
+                                    bitmap.compress(Bitmap.CompressFormat.JPEG, compressionQuality, out)
+                                }
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                contentValues.clear()
+                                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                                resolver.update(imageUri, contentValues, null, null)
+                            }
+                            MediaScannerConnection.scanFile(context, arrayOf(imageUri.toString()), null, null)
+                        }
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
                 }
 
                 _shareFileProgress.value = null
 
-                // Launch system sharesheet contract
+                // Launch system sharesheet contract conditionally
                 withContext(Dispatchers.Main) {
                     val fileUri = FileProvider.getUriForFile(
                         context,
@@ -508,15 +696,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         outputFile
                     )
 
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        setDataAndType(fileUri, if (format == "PDF") "application/pdf" else "image/jpeg")
-                        putExtra(Intent.EXTRA_STREAM, fileUri)
-                        putExtra(Intent.EXTRA_SUBJECT, "Shared via Collage Pro")
-                        putExtra(Intent.EXTRA_TEXT, "Created Picture Collage: $displayFilename")
+                    if (shareAfterExport) {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            setDataAndType(fileUri, if (format == "PDF") "application/pdf" else "image/jpeg")
+                            putExtra(Intent.EXTRA_STREAM, fileUri)
+                            putExtra(Intent.EXTRA_SUBJECT, "Shared via Collage Pro")
+                            putExtra(Intent.EXTRA_TEXT, "Created Picture Collage: $displayFilename")
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share Collage ($format)"))
+                    } else {
+                        Toast.makeText(context, "Successfully Exported to Device Storage!\nSaved as $safeFileName", Toast.LENGTH_LONG).show()
                     }
-                    context.startActivity(Intent.createChooser(intent, "Share Collage ($format)"))
-                    Toast.makeText(context, "Saved to App Local Storage:\n$safeFileName", Toast.LENGTH_LONG).show()
                     refreshLocalExportedFiles(context)
                 }
 
@@ -656,22 +847,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshLocalExportedFiles(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             val list = mutableListOf<File>()
+            
+            // Check getExternalFilesDir PICTUES
             val picturesDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
             if (picturesDir != null && picturesDir.exists()) {
-                val pics = picturesDir.listFiles { _, name -> name.endsWith(".jpg") || name.endsWith(".jpeg") }
+                val pics = picturesDir.listFiles { _, name -> 
+                    val lower = name.lowercase(Locale.US)
+                    lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+                }
                 if (pics != null) {
                     list.addAll(pics)
                 }
             }
+            
+            // Check getExternalFilesDir DOCUMENTS
             val docsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
             if (docsDir != null && docsDir.exists()) {
-                val docs = docsDir.listFiles { _, name -> name.endsWith(".pdf") }
+                val docs = docsDir.listFiles { _, name -> 
+                    val lower = name.lowercase(Locale.US)
+                    lower.endsWith(".pdf")
+                }
                 if (docs != null) {
                     list.addAll(docs)
                 }
             }
-            list.sortByDescending { it.lastModified() }
-            _localExportedFiles.value = list
+            
+            // Check local filesDir fallback
+            val internalDir = context.filesDir
+            if (internalDir != null && internalDir.exists()) {
+                val internalFiles = internalDir.listFiles { _, name -> 
+                    val lower = name.lowercase(Locale.US)
+                    lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".pdf")
+                }
+                if (internalFiles != null) {
+                    list.addAll(internalFiles)
+                }
+            }
+            
+            val sortedList = list.distinctBy { it.name }.sortedByDescending { it.lastModified() }
+            _localExportedFiles.value = sortedList
         }
     }
 
