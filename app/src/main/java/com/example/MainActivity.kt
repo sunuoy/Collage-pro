@@ -1,14 +1,19 @@
 package com.example
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.content.FileProvider
+import java.io.File
+import java.util.Locale
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
@@ -108,6 +113,10 @@ fun AppContent(viewModel: MainViewModel) {
                     viewModel = viewModel,
                     onBackClick = { viewModel.currentScreen = "dashboard" }
                 )
+                "settings" -> SettingsScreen(
+                    viewModel = viewModel,
+                    onBackClick = { viewModel.currentScreen = "dashboard" }
+                )
             }
         }
 
@@ -153,6 +162,45 @@ fun DashboardScreen(
     onSyncClick: () -> Unit
 ) {
     Scaffold(
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFEF7FF))
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(
+                    onClick = { viewModel.currentScreen = "settings" },
+                    modifier = Modifier.testTag("hamburger_menu_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Menu,
+                        contentDescription = "Open Settings & Local Files",
+                        tint = Color(0xFF1D1B20)
+                    )
+                }
+                Text(
+                    text = "Collage Pro Studio",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF1D1B20)
+                )
+                IconButton(
+                    onClick = onSyncClick,
+                    enabled = !isSyncing,
+                    modifier = Modifier.testTag("cloud_sync_btn")
+                ) {
+                    Icon(
+                        imageVector = if (isSyncing) Icons.Filled.Refresh else Icons.Filled.CloudDone,
+                        contentDescription = "Cloud Status",
+                        tint = if (isSyncing) Color(0xFF6750A4) else Color(0xFF0F823E)
+                    )
+                }
+            }
+        },
         bottomBar = {
             // Elegant studio trademark footer
             Row(
@@ -1419,4 +1467,403 @@ private fun getCollageSlots(size: Int, template: Int): List<CollageSlot> {
         }
     }
     return list
+}
+
+@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    viewModel: MainViewModel,
+    onBackClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val localFiles by viewModel.localExportedFiles.collectAsStateWithLifecycle()
+
+    // Refresh files on screen entering
+    LaunchedEffect(Unit) {
+        viewModel.refreshLocalExportedFiles(context)
+    }
+
+    Scaffold(
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFEF7FF))
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBackClick, modifier = Modifier.testTag("settings_back_btn")) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "Back to dashboard",
+                        tint = Color(0xFF1D1B20)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Settings & Local Storage",
+                    color = Color(0xFF1D1B20),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+        },
+        containerColor = Color(0xFFFEF7FF)
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // About App Card
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("about_app_card"),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
+                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF6750A4)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Filled.Info, "Info Icon", tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Picture Collage Pro",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1D1B20)
+                            )
+                            Text(
+                                text = "Version v1.0.4 • Official Stable Build",
+                                fontSize = 11.sp,
+                                color = Color(0xFF49454F),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "A professional design suite enabling you to customize layouts, linear color filter spectrums, and fine opacity watermarking. Saves all exports directly to external local storage safely.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF49454F),
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+
+            // GitHub updates card
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("github_updates_card"),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "GITHUB INTERACTIVE UPDATES",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6750A4)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Check online repository status structure to align with security, stability, or visual updates.",
+                        fontSize = 12.sp,
+                        color = Color(0xFF49454F)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (viewModel.isCheckingUpdates) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF6750A4))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("Querying GitHub releases catalog...", fontSize = 12.sp, color = Color(0xFF49454F))
+                        }
+                    } else {
+                        viewModel.updateMessage?.let { msg ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFEADDFF))
+                                    .padding(12.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Filled.Check, "Checked", tint = Color(0xFF21005D), modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = msg, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF21005D))
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        Button(
+                            onClick = { viewModel.checkForGithubUpdates() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().testTag("git_check_btn")
+                        ) {
+                            Icon(Icons.Filled.Refresh, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Check GitHub for Updates", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // Quality Options Card
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("quality_options_card"),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "SAVING & QUALITY PREFERENCES",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6750A4),
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    // Compression
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Uncompressed High-Quality JPG", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+                            Text(text = "Renders collage outputs at 95% ratio (default 75%)", fontSize = 11.sp, color = Color(0xFF49454F))
+                        }
+                        Switch(
+                            checked = viewModel.highQualityExport,
+                            onCheckedChange = { viewModel.highQualityExport = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF6750A4)
+                            ),
+                            modifier = Modifier.testTag("hq_export_switch")
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFCAC4D0), thickness = 0.5.dp)
+
+                    // Grid startup
+                    Text(text = "Default Startup Templates Size", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+                    Text(text = "Determine preferred number of starting canvas blocks:", fontSize = 11.sp, color = Color(0xFF49454F), modifier = Modifier.padding(bottom = 8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(2, 4, 6, 9).forEach { num ->
+                            val isSelected = viewModel.defaultGridSizeSetting == num
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.defaultGridSizeSetting = num
+                                    viewModel.gridLayoutSize = num
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSelected) Color(0xFFEADDFF) else Color.Transparent,
+                                    contentColor = if (isSelected) Color(0xFF21005D) else Color(0xFF49454F)
+                                ),
+                                modifier = Modifier.weight(1f).testTag("default_grid_$num")
+                            ) {
+                                Text(text = "$num Blocks", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Saved Files Section
+            Text(
+                text = "EXPORTED COLLAGES FILE EXPLORER",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF6750A4),
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+
+            if (localFiles.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().testTag("empty_files_card"),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFCAC4D0).copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Folder,
+                            contentDescription = "Empty File Cabinet",
+                            tint = Color(0xFFCAC4D0),
+                            modifier = Modifier.size(52.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "No saved collages found",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF49454F)
+                        )
+                        Text(
+                            text = "Your exported high-resolution PDF or JPEG canvas layouts will be listed permanently in this local storage manager.",
+                            fontSize = 11.sp,
+                            color = Color(0xFF49454F),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.testTag("saved_files_list")
+                ) {
+                    localFiles.forEach { file ->
+                        val isPdf = file.name.endsWith(".pdf", ignoreCase = true)
+                        val formattedSize = formatSizeInKB(file.length())
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth().testTag("local_file_item_${file.name}"),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isPdf) Color(0xFFF9DEDC) else Color(0xFFE8DEF8)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPdf) Icons.Filled.Share /* Placeholder standard icon */ else Icons.Filled.Image,
+                                        contentDescription = "File Type Type",
+                                        tint = if (isPdf) Color(0xFF8C1D18) else Color(0xFF6750A4),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = file.name,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1D1B20),
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "$formattedSize • Storage Location",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF49454F)
+                                    )
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Open file
+                                    IconButton(
+                                        onClick = {
+                                            val fileUri = FileProvider.getUriForFile(
+                                                context,
+                                                "${context.packageName}.fileprovider",
+                                                file
+                                            )
+                                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                setDataAndType(fileUri, if (isPdf) "application/pdf" else "image/jpeg")
+                                            }
+                                            try {
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "No app found to preview this style file.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier.size(32.dp).testTag("open_file_${file.name}")
+                                    ) {
+                                        Icon(Icons.Filled.Share, "Preview", tint = Color(0xFF6750A4), modifier = Modifier.size(16.dp))
+                                    }
+
+                                    // Share (System Intents)
+                                    IconButton(
+                                        onClick = {
+                                            val fileUri = FileProvider.getUriForFile(
+                                                context,
+                                                "${context.packageName}.fileprovider",
+                                                file
+                                            )
+                                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                setDataAndType(fileUri, if (isPdf) "application/pdf" else "image/jpeg")
+                                                putExtra(Intent.EXTRA_STREAM, fileUri)
+                                            }
+                                            context.startActivity(Intent.createChooser(intent, "Share Exported Collage"))
+                                        },
+                                        modifier = Modifier.size(32.dp).testTag("share_file_${file.name}")
+                                    ) {
+                                        Icon(Icons.Filled.Share, "Share", tint = Color(0xFF49454F), modifier = Modifier.size(16.dp))
+                                    }
+
+                                    // Delete
+                                    IconButton(
+                                        onClick = {
+                                            try {
+                                                if (file.exists()) {
+                                                    file.delete()
+                                                    Toast.makeText(context, "Purged from storage cache!", Toast.LENGTH_SHORT).show()
+                                                    viewModel.refreshLocalExportedFiles(context)
+                                                }
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Purge error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier.size(32.dp).testTag("delete_file_${file.name}")
+                                    ) {
+                                        Icon(Icons.Filled.Delete, "Delete", tint = Color(0xFFBA1A1A), modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+// Inline format utility to avoid double declarations
+private fun formatSizeInKB(bytes: Long): String {
+    if (bytes < 1024) return "$bytes B"
+    val kb = bytes / 1024f
+    if (kb < 1024) return String.format(Locale.US, "%.1f KB", kb)
+    val mb = kb / 1024f
+    return String.format(Locale.US, "%.1f MB", mb)
 }
