@@ -729,8 +729,52 @@ fun CreatorScreen(
                             color = MaterialTheme.colorScheme.primary,
                             letterSpacing = 1.sp
                         ),
-                        modifier = Modifier.padding(bottom = 6.dp)
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "A4 PDF Orientation:",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(32.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(2.dp)
+                        ) {
+                            Text(
+                                text = "PORTRAIT",
+                                color = if (!viewModel.pdfLandscape) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(32.dp))
+                                    .background(if (!viewModel.pdfLandscape) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                    .clickable { viewModel.pdfLandscape = false }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            )
+                            Text(
+                                text = "LANDSCAPE",
+                                color = if (viewModel.pdfLandscape) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(32.dp))
+                                    .background(if (viewModel.pdfLandscape) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                    .clickable { viewModel.pdfLandscape = true }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            )
+                        }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -820,8 +864,8 @@ fun CreatorScreen(
                     .fillMaxWidth()
                     .aspectRatio(1f)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(4.dp, MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                    .background(if (viewModel.isColorOutput) Color.White else Color(0xFF121212))
+                    .border(4.dp, if (viewModel.isColorOutput) Color.White else Color(0xFF121212), RoundedCornerShape(24.dp))
                     .border(5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
                     .testTag("collage_canvas_container"),
                 contentAlignment = Alignment.Center

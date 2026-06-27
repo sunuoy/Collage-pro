@@ -73,6 +73,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var showWatermark by mutableStateOf(false)
     var showBorders by mutableStateOf(true)
     var showCellIndices by mutableStateOf(true)
+    var pdfLandscape by mutableStateOf(false)
 
     // Current Project ID
     var activeProjectId by mutableStateOf<Int?>(null)
@@ -566,7 +567,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _shareFileProgress.value = "Generating $format file..."
             try {
                 // Determine layout dimension
-                val collageSize = 1000
+                val collageSize = 1080
                 val bitmap = Bitmap.createBitmap(collageSize, collageSize, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bitmap)
 
@@ -764,20 +765,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (format == "PDF") {
                     val pdfDocument = PdfDocument()
-                    // Standard A4 paper size in postscript points (1/72 inch): 595 x 842 points
-                    val a4Width = 595
-                    val a4Height = 842
+                    // Standard A4 paper size in postscript points (1/72 inch): 595 x 842 points (portrait or landscape)
+                    val a4Width = if (pdfLandscape) 842 else 595
+                    val a4Height = if (pdfLandscape) 595 else 842
                     val pageInfo = PdfDocument.PageInfo.Builder(a4Width, a4Height, 1).create()
                     val page = pdfDocument.startPage(pageInfo)
                     
-                    // Calculate scaling to fit the collage bitmap centered on the A4 portrait page
                     val margin = 36f // 0.5 inch margins
-                    val targetWidth = a4Width - (2 * margin)
-                    val scale = targetWidth / bitmap.width.toFloat()
+                    val availableWidth = a4Width - (2 * margin)
+                    val availableHeight = a4Height - (2 * margin)
+                    
+                    val scaleX = availableWidth / bitmap.width.toFloat()
+                    val scaleY = availableHeight / bitmap.height.toFloat()
+                    val scale = minOf(scaleX, scaleY)
+                    
+                    val targetWidth = bitmap.width.toFloat() * scale
                     val targetHeight = bitmap.height.toFloat() * scale
                     
-                    val left = margin
-                    val top = (a4Height - targetHeight) / 2f
+                    val left = margin + (availableWidth - targetWidth) / 2f
+                    val top = margin + (availableHeight - targetHeight) / 2f
                     val right = left + targetWidth
                     val bottom = top + targetHeight
                     
@@ -1106,27 +1112,61 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return list[(seed - 1).coerceIn(0, list.size - 1)]
     }
 
-    // Load bitmap robustly
+    // Load bitmap robustly with EXIF orientation correction
     private fun loadBitmapFromUri(context: Context, uri: Uri, targetSize: Int): Bitmap? {
         return try {
+            val options = android.graphics.BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
             context.contentResolver.openInputStream(uri)?.use { stream ->
-                val options = android.graphics.BitmapFactory.Options().apply {
-                    inJustDecodeBounds = true
-                }
                 android.graphics.BitmapFactory.decodeStream(stream, null, options)
-                
-                var scale = 1
-                while (options.outWidth / scale / 2 >= targetSize && options.outHeight / scale / 2 >= targetSize) {
-                    scale *= 2
+            }
+            
+            var scale = 1
+            while (options.outWidth / scale / 2 >= targetSize && options.outHeight / scale / 2 >= targetSize) {
+                scale *= 2
+            }
+            
+            val scaleOptions = android.graphics.BitmapFactory.Options().apply {
+                inSampleSize = scale
+            }
+            var decodedBitmap = context.contentResolver.openInputStream(uri)?.use { s2 ->
+                android.graphics.BitmapFactory.decodeStream(s2, null, scaleOptions)
+            }
+            
+            if (decodedBitmap != null) {
+                var orientation = android.media.ExifInterface.ORIENTATION_NORMAL
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { exifStream ->
+                        val exifInterface = android.media.ExifInterface(exifStream)
+                        orientation = exifInterface.getAttributeInt(
+                            android.media.ExifInterface.TAG_ORIENTATION,
+                            android.media.ExifInterface.ORIENTATION_NORMAL
+                        )
+                    }
+                } catch (ex: Exception) {
+                    ex.printStackTrace()
                 }
                 
-                val scaleOptions = android.graphics.BitmapFactory.Options().apply {
-                    inSampleSize = scale
+                val rotation = when (orientation) {
+                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                    else -> 0
                 }
-                context.contentResolver.openInputStream(uri)?.use { s2 ->
-                    android.graphics.BitmapFactory.decodeStream(s2, null, scaleOptions)
+                
+                if (rotation != 0) {
+                    val matrix = android.graphics.Matrix().apply { postRotate(rotation.toFloat()) }
+                    val rotated = android.graphics.Bitmap.createBitmap(
+                        decodedBitmap, 0, 0, decodedBitmap.width, decodedBitmap.height, matrix, true
+                    )
+                    if (rotated != decodedBitmap) {
+                        decodedBitmap.recycle()
+                    }
+                    decodedBitmap = rotated
                 }
             }
+            decodedBitmap
         } catch (e: Exception) {
             e.printStackTrace()
             null
