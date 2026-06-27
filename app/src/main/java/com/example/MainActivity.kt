@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .testTag("app_main_surface"),
-                    color = Color(0xFFFEF7FF) // Geometric Balance surface
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     AppContent(viewModel)
                 }
@@ -110,7 +110,7 @@ fun AppContent(viewModel: MainViewModel) {
                     viewModel = viewModel,
                     projects = projects,
                     isSyncing = isSyncing,
-                    onSyncClick = { viewModel.syncProjectsToCloud() }
+                    onSyncClick = { viewModel.showSyncDialog = true }
                 )
                 "creator" -> CreatorScreen(
                     viewModel = viewModel,
@@ -121,6 +121,11 @@ fun AppContent(viewModel: MainViewModel) {
                     onBackClick = { viewModel.currentScreen = "dashboard" }
                 )
             }
+        }
+
+        // Interactive Cloud Sync Dialog
+        if (viewModel.showSyncDialog) {
+            CloudSyncDialog(viewModel = viewModel)
         }
 
         // Sharing Overlay Indicator
@@ -169,7 +174,7 @@ fun DashboardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF7FF))
+                    .background(MaterialTheme.colorScheme.background)
                     .statusBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -182,14 +187,14 @@ fun DashboardScreen(
                     Icon(
                         imageVector = Icons.Filled.Menu,
                         contentDescription = "Open Settings & Local Files",
-                        tint = Color(0xFF1D1B20)
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Text(
                     text = "Collage Pro Studio",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black,
-                    color = Color(0xFF1D1B20)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 IconButton(
                     onClick = onSyncClick,
@@ -199,7 +204,7 @@ fun DashboardScreen(
                     Icon(
                         imageVector = if (isSyncing) Icons.Filled.Refresh else Icons.Filled.CloudDone,
                         contentDescription = "Cloud Status",
-                        tint = if (isSyncing) Color(0xFF6750A4) else Color(0xFF0F823E)
+                        tint = if (isSyncing) MaterialTheme.colorScheme.primary else Color(0xFF0F823E)
                     )
                 }
             }
@@ -209,7 +214,7 @@ fun DashboardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF7FF))
+                    .background(MaterialTheme.colorScheme.background)
                     .navigationBarsPadding()
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.Center
@@ -217,12 +222,12 @@ fun DashboardScreen(
                 Text(
                     text = "© Collage Pro Studio • Local & Cloud Backup Ready",
                     fontSize = 11.sp,
-                    color = Color(0xFF49454F),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
             }
         },
-        containerColor = Color(0xFFFEF7FF)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -231,19 +236,22 @@ fun DashboardScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // Hero Brand Title Header
+            val primaryColor = MaterialTheme.colorScheme.primary
+            val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
+            val backgroundColor = MaterialTheme.colorScheme.background
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
                     .drawBehind {
                         // Drawing custom design studio background
-                        val colorsList = listOf(Color(0xFFF3EDF7), Color(0xFFFEF7FF))
+                        val colorsList = listOf(surfaceVariantColor, backgroundColor)
                         drawRect(
                             brush = Brush.verticalGradient(colorsList),
                             size = size
                         )
                         drawCircle(
-                            color = Color(0xFF6750A4).copy(alpha = 0.06f),
+                            color = primaryColor.copy(alpha = 0.06f),
                             radius = size.width * 0.4f,
                             center = Offset(size.width * 0.9f, size.height * 0.1f)
                         )
@@ -262,13 +270,13 @@ fun DashboardScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF6750A4)),
+                                .background(MaterialTheme.colorScheme.primary),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.GridView,
                                 contentDescription = "Studio Icon",
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -279,7 +287,7 @@ fun DashboardScreen(
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Black,
                                 fontFamily = FontFamily.SansSerif,
-                                color = Color(0xFF1D1B20)
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -304,7 +312,7 @@ fun DashboardScreen(
                     Text(
                         text = "Customize professional grids, filters & watermarks",
                         fontSize = 13.sp,
-                        color = Color(0xFF49454F),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp)
                     )
 
@@ -314,8 +322,8 @@ fun DashboardScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFF3EDF7))
-                            .border(1.dp, Color(0xFFCAC4D0), RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -324,7 +332,7 @@ fun DashboardScreen(
                             Icon(
                                 imageVector = if (isSyncing) Icons.Filled.Refresh else Icons.Filled.Cloud,
                                 contentDescription = "Cloud Status",
-                                tint = if (isSyncing) Color(0xFF6750A4) else Color(0xFF0F823E),
+                                tint = if (isSyncing) MaterialTheme.colorScheme.primary else Color(0xFF0F823E),
                                 modifier = Modifier
                                     .size(18.dp)
                                     .run {
@@ -335,7 +343,7 @@ fun DashboardScreen(
                             Text(
                                 text = if (isSyncing) "Syncing with cloud storage..." else "${projects.size} projects backed up",
                                 fontSize = 12.sp,
-                                color = Color(0xFF1D1B20)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         IconButton(
@@ -348,7 +356,7 @@ fun DashboardScreen(
                             Icon(
                                 imageVector = Icons.Filled.Sync,
                                 contentDescription = "Force Cloud Synchronization",
-                                tint = Color(0xFF6750A4),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -361,7 +369,7 @@ fun DashboardScreen(
                 text = "START A NEW CREATION",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF49454F),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
             )
 
@@ -392,12 +400,12 @@ fun DashboardScreen(
                     text = "YOUR SAVED PROJECTS",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF49454F)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "${projects.size} items",
                     fontSize = 11.sp,
-                    color = Color(0xFF49454F)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -410,8 +418,8 @@ fun DashboardScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 32.dp)
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0xFFF3EDF7))
-                        .border(1.dp, Color(0xFFCAC4D0), RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -419,19 +427,19 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.Filled.Image,
                             contentDescription = "Empty",
-                            tint = Color(0xFF6750A4),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "No saved projects yet",
-                            color = Color(0xFF1D1B20),
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
                         Text(
                             text = "Choose a layout above to assemble your first photography collage!",
-                            color = Color(0xFF49454F),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 4.dp),
                             lineHeight = 16.sp
@@ -467,8 +475,8 @@ fun GridCreatorButton(
                 viewModel.currentScreen = "creator"
             }
             .testTag("create_grid_$size"),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
@@ -479,13 +487,13 @@ fun GridCreatorButton(
             Icon(
                 imageVector = icon,
                 contentDescription = "$size Grids creation",
-                tint = Color(0xFF6750A4),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "$size Grid",
-                color = Color(0xFF1D1B20),
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
             )
@@ -509,8 +517,8 @@ fun ProjectItemRow(
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 6.dp)
             .testTag("project_card_${project.id}"),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
@@ -524,7 +532,7 @@ fun ProjectItemRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = project.name,
-                        color = Color(0xFF1D1B20),
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     )
@@ -533,19 +541,19 @@ fun ProjectItemRow(
                     Icon(
                         imageVector = if (project.isSynced) Icons.Filled.CloudDone else Icons.Filled.CloudOff,
                         contentDescription = "Sync State Indicator",
-                        tint = if (project.isSynced) Color(0xFF0F823E) else Color(0xFF8A8590),
+                        tint = if (project.isSynced) Color(0xFF0F823E) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.size(14.dp)
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Layout: ${project.gridLayoutSize}-cell grid • Apply: ${project.filterName}",
-                    color = Color(0xFF49454F),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp
                 )
                 Text(
                     text = "Saved: $dateString",
-                    color = Color(0xFF8A8590),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     fontSize = 11.sp,
                     modifier = Modifier.padding(top = 2.dp)
                 )
@@ -555,14 +563,14 @@ fun ProjectItemRow(
                     Icon(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = "Load layout",
-                        tint = Color(0xFF6750A4)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
                         contentDescription = "Delete",
-                        tint = Color(0xFF8A8590)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
             }
@@ -595,7 +603,7 @@ fun CreatorScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF7FF))
+                    .background(MaterialTheme.colorScheme.background)
                     .statusBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -606,7 +614,7 @@ fun CreatorScreen(
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = "Exit to dashboard",
-                            tint = Color(0xFF1D1B20)
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
@@ -615,7 +623,7 @@ fun CreatorScreen(
                             value = viewModel.activeProjectName,
                             onValueChange = { viewModel.activeProjectName = it },
                             textStyle = androidx.compose.ui.text.TextStyle(
-                                color = Color(0xFF1D1B20),
+                                color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 16.sp
                             ),
@@ -627,7 +635,7 @@ fun CreatorScreen(
                         )
                         Text(
                             text = "Auto-save ready",
-                            color = Color(0xFF6750A4),
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -640,7 +648,7 @@ fun CreatorScreen(
                         Icon(
                             imageVector = Icons.Filled.Save,
                             contentDescription = "Save project locally",
-                            tint = Color(0xFF1D1B20)
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -651,10 +659,10 @@ fun CreatorScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF7FF))
+                    .background(MaterialTheme.colorScheme.background)
                     .navigationBarsPadding()
             ) {
-                HorizontalDivider(color = Color(0xFFCAC4D0), thickness = 1.dp)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), thickness = 1.dp)
 
                 // Color preference toggle (Colour Palette vs Black & White output)
                 Row(
@@ -666,42 +674,42 @@ fun CreatorScreen(
                 ) {
                     Text(
                         text = "Global Output Style:",
-                        color = Color(0xFF1D1B20),
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(32.dp))
-                            .background(Color(0xFFF3EDF7))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(3.dp)
                     ) {
                         Text(
                             text = "COLOUR",
-                            color = if (viewModel.isColorOutput) Color.White else Color(0xFF49454F),
+                            color = if (viewModel.isColorOutput) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(32.dp))
-                                .background(if (viewModel.isColorOutput) Color(0xFF6750A4) else Color.Transparent)
+                                .background(if (viewModel.isColorOutput) MaterialTheme.colorScheme.primary else Color.Transparent)
                                 .clickable { viewModel.isColorOutput = true }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                         Text(
                             text = "MONO B&W",
-                            color = if (!viewModel.isColorOutput) Color.White else Color(0xFF49454F),
+                            color = if (!viewModel.isColorOutput) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(32.dp))
-                                .background(if (!viewModel.isColorOutput) Color(0xFF49454F) else Color.Transparent)
+                                .background(if (!viewModel.isColorOutput) MaterialTheme.colorScheme.primary else Color.Transparent)
                                 .clickable { viewModel.isColorOutput = false }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
                 }
 
-                HorizontalDivider(color = Color(0xFFCAC4D0), thickness = 1.dp)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), thickness = 1.dp)
 
                 // EXPORT & SHARE ACTIONS SEPARATED
                 Column(
@@ -715,7 +723,7 @@ fun CreatorScreen(
                         style = androidx.compose.ui.text.TextStyle(
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6750A4),
+                            color = MaterialTheme.colorScheme.primary,
                             letterSpacing = 1.sp
                         ),
                         modifier = Modifier.padding(bottom = 6.dp)
@@ -726,8 +734,11 @@ fun CreatorScreen(
                     ) {
                         Button(
                             onClick = { viewModel.exportAndShare("JPG", context, shareAfterExport = false) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3EDF7), contentColor = Color(0xFF6750A4)),
-                            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .weight(1f)
@@ -741,10 +752,10 @@ fun CreatorScreen(
                         Button(
                             onClick = { viewModel.exportAndShare("PDF", context, shareAfterExport = false) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFF3EDF7),
-                                contentColor = Color(0xFF6750A4)
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.primary
                             ),
-                            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .weight(1f)
@@ -758,7 +769,7 @@ fun CreatorScreen(
                 }
             }
         },
-        containerColor = Color(0xFFFEF7FF)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -775,21 +786,21 @@ fun CreatorScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFF3EDF7))
-                    .border(1.dp, Color(0xFFCAC4D0), RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Filled.Drafts,
                     contentDescription = "Draft Icon",
-                    tint = Color(0xFF49454F),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = viewModel.generateDisplayFileName(),
-                    color = Color(0xFF49454F),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -806,9 +817,9 @@ fun CreatorScreen(
                     .fillMaxWidth()
                     .aspectRatio(1f)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color.White)
-                    .border(4.dp, Color.White, RoundedCornerShape(24.dp))
-                    .border(5.dp, Color(0xFFCAC4D0).copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(4.dp, MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                    .border(5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
                     .testTag("collage_canvas_container"),
                 contentAlignment = Alignment.Center
             ) {
@@ -827,8 +838,8 @@ fun CreatorScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp, vertical = 6.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFFEF7FF))
-                    .border(1.dp, Color(0xFF6750A4).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.background)
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -837,7 +848,7 @@ fun CreatorScreen(
                     Icon(
                         imageVector = if (viewModel.showWatermark) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
                         contentDescription = "Watermark Visibility",
-                        tint = if (viewModel.showWatermark) Color(0xFF6750A4) else Color.Gray,
+                        tint = if (viewModel.showWatermark) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -846,12 +857,12 @@ fun CreatorScreen(
                             text = "Collage Watermark: ${if (viewModel.showWatermark) "Visible" else "Hidden"}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (viewModel.showWatermark) Color(0xFF6750A4) else Color(0xFF49454F)
+                            color = if (viewModel.showWatermark) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "\"${viewModel.watermarkText}\"",
                             fontSize = 10.sp,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             fontStyle = FontStyle.Italic
                         )
                     }
@@ -870,7 +881,7 @@ fun CreatorScreen(
             Text(
                 text = "Long press cells to Swap easily • Tap cells to replace content",
                 fontSize = 11.sp,
-                color = Color(0xFF49454F),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
 
@@ -881,8 +892,8 @@ fun CreatorScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 8.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFF3EDF7))
-                        .border(1.dp, Color(0xFF6750A4).copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
                         .padding(16.dp)
                 ) {
                     // Header Area
@@ -892,11 +903,11 @@ fun CreatorScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit Card", tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.Edit, contentDescription = "Edit Card", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Adjust Slot #${index + 1} Media",
-                                color = Color(0xFF1D1B20),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -911,15 +922,15 @@ fun CreatorScreen(
                                     viewModel.updateRotationInSlot(index, 0f)
                                 }
                             ) {
-                                Text("Reset", fontSize = 11.sp, color = Color(0xFFBA1A1A), fontWeight = FontWeight.Bold)
+                                Text("Reset", fontSize = 11.sp, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                             }
                             IconButton(onClick = { viewModel.selectedSlotIndex = null }) {
-                                Icon(Icons.Filled.Close, "Dismiss Action Bar", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Filled.Close, "Dismiss Action Bar", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                             }
                         }
                     }
 
-                    HorizontalDivider(color = Color(0xFFCAC4D0).copy(alpha = 0.5f), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
 
                     val zoomVal = viewModel.activeZooms.getOrElse(index) { 1f }
                     val panXVal = viewModel.activePanX.getOrElse(index) { 0f }
@@ -934,11 +945,11 @@ fun CreatorScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.ZoomIn, "Zoom scale", modifier = Modifier.size(14.dp), tint = Color(0xFF49454F))
+                                Icon(Icons.Filled.ZoomIn, "Zoom scale", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Zoom & Scale", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
+                                Text("Zoom & Scale", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text(text = String.format("%.2fx", zoomVal), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6750A4))
+                            Text(text = String.format("%.2fx", zoomVal), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                         }
                         Slider(
                             value = zoomVal,
@@ -967,8 +978,8 @@ fun CreatorScreen(
                             onValueChange = { viewModel.setPanXInSlot(index, it) },
                             valueRange = -1f..1f,
                             colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFF6750A4),
-                                activeTrackColor = Color(0xFF6750A4)
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary
                             ),
                             modifier = Modifier.height(30.dp).testTag("adjust_panx_slider_$index")
                         )
@@ -981,16 +992,16 @@ fun CreatorScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Vertical Crop Offset (Pan Y)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
-                            Text(text = String.format("%d%%", (panYVal * 100).toInt()), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6750A4))
+                            Text("Vertical Crop Offset (Pan Y)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(text = String.format("%d%%", (panYVal * 100).toInt()), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                         }
                         Slider(
                             value = panYVal,
                             onValueChange = { viewModel.setPanYInSlot(index, it) },
                             valueRange = -1f..1f,
                             colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFF6750A4),
-                                activeTrackColor = Color(0xFF6750A4)
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary
                             ),
                             modifier = Modifier.height(30.dp).testTag("adjust_pany_slider_$index")
                         )
@@ -1004,19 +1015,19 @@ fun CreatorScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.RotateRight, "Rotate index", modifier = Modifier.size(14.dp), tint = Color(0xFF49454F))
+                                Icon(Icons.Filled.RotateRight, "Rotate index", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Rotation Degrees", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
+                                Text("Rotation Degrees", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Text(text = String.format("%.0f°", rotVal), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF6750A4))
+                            Text(text = String.format("%.0f°", rotVal), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                         }
                         Slider(
                             value = rotVal,
                             onValueChange = { viewModel.updateRotationInSlot(index, it) },
                             valueRange = 0f..360f,
                             colors = SliderDefaults.colors(
-                                thumbColor = Color(0xFF6750A4),
-                                activeTrackColor = Color(0xFF6750A4)
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary
                             ),
                             modifier = Modifier.height(30.dp).testTag("adjust_rot_slider_$index")
                         )
@@ -1037,8 +1048,11 @@ fun CreatorScreen(
                                 viewModel.updateRotationInSlot(index, 0f)
                                 viewModel.selectedSlotIndex = null
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3EDF7), contentColor = Color(0xFFBA1A1A)),
-                            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.weight(1f).padding(end = 6.dp)
                         ) {
@@ -1047,7 +1061,10 @@ fun CreatorScreen(
 
                         Button(
                             onClick = { viewModel.selectedSlotIndex = null },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.weight(1f).padding(start = 6.dp)
                         ) {
@@ -1063,7 +1080,7 @@ fun CreatorScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF7FF))
+                    .background(MaterialTheme.colorScheme.background)
             ) {
                 TabButton(text = "Templates", isActive = activeTab == "grids", onClick = { activeTab = "grids" }, modifier = Modifier.weight(1f))
                 TabButton(text = "Filters", isActive = activeTab == "filters", onClick = { activeTab = "filters" }, modifier = Modifier.weight(1f))
@@ -1075,7 +1092,7 @@ fun CreatorScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF7FF))
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(20.dp)
             ) {
                 when (activeTab) {
@@ -1102,7 +1119,7 @@ fun TabButton(
             .clickable(onClick = onClick)
             .border(
                 width = if (isActive) 1.dp else 0.dp,
-                color = if (isActive) Color(0xFF6750A4) else Color.Transparent
+                color = if (isActive) MaterialTheme.colorScheme.primary else Color.Transparent
             )
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
@@ -1111,7 +1128,7 @@ fun TabButton(
             text = text.uppercase(),
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isActive) Color(0xFF6750A4) else Color(0xFF49454F)
+            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -1128,7 +1145,9 @@ fun CollageWorkspaceCanvas(
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
 
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(1.dp)
     ) {
         val wPx = constraints.maxWidth
         val hPx = constraints.maxHeight
@@ -1147,16 +1166,16 @@ fun CollageWorkspaceCanvas(
                         width = (slot.widthFraction * wPx / (LocalContext.current.resources.displayMetrics.density)).dp,
                         height = (slot.heightFraction * hPx / (LocalContext.current.resources.displayMetrics.density)).dp
                     )
-                    .padding(2.dp)
+                    .padding(3.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0xFFF3EDF7))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .border(
                         BorderStroke(
                             width = if (isSelected || isDragging) 3.dp else if (viewModel.showBorders) 1.dp else 0.dp,
                             color = when {
-                                isSelected -> Color(0xFF6750A4)
-                                isDragging -> Color(0xFF6750A4)
-                                else -> if (viewModel.showBorders) Color(0xFFCAC4D0) else Color.Transparent
+                                isSelected -> MaterialTheme.colorScheme.primary
+                                isDragging -> MaterialTheme.colorScheme.primary
+                                else -> if (viewModel.showBorders) MaterialTheme.colorScheme.outline else Color.Transparent
                             }
                         ),
                         shape = RoundedCornerShape(4.dp)
@@ -1323,30 +1342,118 @@ private fun getPresetHexHex(seed: Int): String {
     return list[(seed - 1).coerceIn(0, list.size - 1)]
 }
 
+data class TemplateOption(val index: Int, val name: String, val description: String)
+
+fun getTemplateOptionsForSize(size: Int): List<TemplateOption> {
+    return when (size) {
+        2 -> listOf(
+            TemplateOption(0, "Vertical Split", "50:50 vertical split"),
+            TemplateOption(1, "Horizontal Split", "50:50 horizontal split"),
+            TemplateOption(2, "Golden Vertical", "Asymmetric 1:2 vertical focal"),
+            TemplateOption(3, "Golden Horizontal", "Asymmetric 1:2 horizontal focal")
+        )
+        4 -> listOf(
+            TemplateOption(0, "Equal Grid", "Perfect 2x2 symmetry"),
+            TemplateOption(1, "Spotlight Focus", "Dominant left vertical band"),
+            TemplateOption(2, "Cinematic Strip", "Top wide cinema focus"),
+            TemplateOption(3, "Vertical Pillars", "Four equal tall strips"),
+            TemplateOption(4, "Pinwheel Spiral", "Rotational alignment")
+        )
+        6 -> listOf(
+            TemplateOption(0, "Standard Blocks", "2 rows of 3 equal columns"),
+            TemplateOption(1, "Banner Spotlight", "Top banner with bottom tiles"),
+            TemplateOption(2, "Vertical Hero", "Left showcase with sidebar tiles"),
+            TemplateOption(3, "Book Showcase", "3 rows of 2 equal columns")
+        )
+        9 -> listOf(
+            TemplateOption(0, "Classic Matrix", "3x3 photography grid"),
+            TemplateOption(1, "Center Spotlight", "Featured central block"),
+            TemplateOption(2, "Column Pillars", "Prominent wide left band"),
+            TemplateOption(3, "Epic Panorama", "Top giant focal band")
+        )
+        else -> listOf(
+            TemplateOption(0, "Default Grid", "Standard layout")
+        )
+    }
+}
+
 @Composable
-fun GridsTabContent(viewModel: MainViewModel) {
-    Column {
-        Text(text = "CHOOSE TEMPLATE STYLE", fontSize = 12.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.horizontalScroll(rememberScrollState())
-        ) {
-            TemplateVariantCard(
-                name = "Equal Split",
-                description = "Classic balances",
-                isSelected = viewModel.templateIndex == 0,
-                onClick = { viewModel.templateIndex = 0 }
-            )
-            TemplateVariantCard(
-                name = "Asymmetric Spotlight",
-                description = "Highlight central focal point",
-                isSelected = viewModel.templateIndex == 1,
-                onClick = { viewModel.templateIndex = 1 }
+fun TemplateMiniPreview(size: Int, template: Int, isSelected: Boolean) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val outlineColor = MaterialTheme.colorScheme.outline
+    val surfaceColor = MaterialTheme.colorScheme.surfaceVariant
+    
+    Box(
+        modifier = Modifier
+            .size(70.dp, 50.dp)
+            .background(if (isSelected) primaryColor.copy(alpha = 0.12f) else surfaceColor)
+            .border(1.dp, if (isSelected) primaryColor else outlineColor.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+            .padding(3.dp)
+    ) {
+        val slots = remember(size, template) { getCollageSlots(size, template) }
+        slots.forEach { slot ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(fraction = 1f)
+                    .align(Alignment.TopStart)
+                    .offset(
+                        x = (slot.leftFraction * 64f).dp,
+                        y = (slot.topFraction * 44f).dp
+                    )
+                    .size(
+                        width = (slot.widthFraction * 64f).dp,
+                        height = (slot.heightFraction * 44f).dp
+                    )
+                    .padding(1.dp)
+                    .background(
+                        if (isSelected) primaryColor.copy(alpha = 0.6f) else outlineColor.copy(alpha = 0.4f),
+                        RoundedCornerShape(1.dp)
+                    )
             )
         }
+    }
+}
+
+@Composable
+fun GridsTabContent(viewModel: MainViewModel) {
+    val currentSize = viewModel.gridLayoutSize
+    val templates = remember(currentSize) { getTemplateOptionsForSize(currentSize) }
+
+    Column {
+        Text(
+            text = "CHOOSE TEMPLATE STYLE",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(vertical = 4.dp)
+        ) {
+            templates.forEach { option ->
+                TemplateVariantCard(
+                    name = option.name,
+                    description = option.description,
+                    size = currentSize,
+                    template = option.index,
+                    isSelected = viewModel.templateIndex == option.index,
+                    onClick = { viewModel.templateIndex = option.index }
+                )
+            }
+        }
+        
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "GRID LAYOUTS", fontSize = 11.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
+        Text(
+            text = "GRID LAYOUTS",
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold
+        )
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -1356,11 +1463,11 @@ fun GridsTabContent(viewModel: MainViewModel) {
                     onClick = { viewModel.startNewProject(size) },
                     border = BorderStroke(
                         width = if (viewModel.gridLayoutSize == size) 2.dp else 1.dp,
-                        color = if (viewModel.gridLayoutSize == size) Color(0xFF6750A4) else Color(0xFFCAC4D0)
+                        color = if (viewModel.gridLayoutSize == size) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                     ),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (viewModel.gridLayoutSize == size) Color(0xFFEADDFF) else Color.Transparent,
-                        contentColor = if (viewModel.gridLayoutSize == size) Color(0xFF21005D) else Color(0xFF49454F)
+                        containerColor = if (viewModel.gridLayoutSize == size) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        contentColor = if (viewModel.gridLayoutSize == size) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     modifier = Modifier.testTag("switch_layout_$size")
                 ) {
@@ -1370,7 +1477,12 @@ fun GridsTabContent(viewModel: MainViewModel) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "DISPLAY PREFERENCES", fontSize = 11.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
+        Text(
+            text = "DISPLAY PREFERENCES",
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1378,15 +1490,15 @@ fun GridsTabContent(viewModel: MainViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Show Borders", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
-                Text("Show divider separators between photos", fontSize = 11.sp, color = Color(0xFF49454F))
+                Text("Show Borders", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text("Show divider separators between photos", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(
                 checked = viewModel.showBorders,
                 onCheckedChange = { viewModel.showBorders = it },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF6750A4)
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier.testTag("show_borders_switch")
             )
@@ -1398,15 +1510,15 @@ fun GridsTabContent(viewModel: MainViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Show Cell Numbers", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
-                Text("Display index tags in preview editor", fontSize = 11.sp, color = Color(0xFF49454F))
+                Text("Show Cell Numbers", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text("Display index tags in preview editor", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(
                 checked = viewModel.showCellIndices,
                 onCheckedChange = { viewModel.showCellIndices = it },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF6750A4)
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary
                 ),
                 modifier = Modifier.testTag("show_cell_indices_switch")
             )
@@ -1418,34 +1530,65 @@ fun GridsTabContent(viewModel: MainViewModel) {
 fun TemplateVariantCard(
     name: String,
     description: String,
+    size: Int,
+    template: Int,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
-            .width(180.dp)
-            .clickable(onClick = onClick),
+            .width(170.dp)
+            .height(130.dp)
+            .clickable(onClick = onClick)
+            .testTag("template_card_${size}_$template"),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFFEADDFF) else Color.White
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
         ),
         border = BorderStroke(
-            1.dp,
-            if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)
+            if (isSelected) 2.dp else 1.dp,
+            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = name, color = if (isSelected) Color(0xFF21005D) else Color(0xFF1D1B20), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            Text(text = description, color = Color(0xFF49454F), fontSize = 11.sp, lineHeight = 14.sp, modifier = Modifier.padding(top = 2.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            TemplateMiniPreview(size = size, template = template, isSelected = isSelected)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = name,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = description,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 11.sp
+                )
+            }
         }
     }
 }
+
 
 @Composable
 fun FiltersTabContent(viewModel: MainViewModel) {
     val filters = listOf("Classic", "Cinema", "Warm", "Cool", "Sepia", "Monochrome", "Vintage")
     Column {
-        Text(text = "LIVE RETRO FILTER PRESETS", fontSize = 12.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
+        Text(text = "LIVE RETRO FILTER PRESETS", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(10.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1459,11 +1602,11 @@ fun FiltersTabContent(viewModel: MainViewModel) {
                         .clickable { viewModel.selectedFilter = filter }
                         .testTag("filter_card_$filter"),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isSelected) Color(0xFFEADDFF) else Color.White
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                     ),
                     border = BorderStroke(
                         if (isSelected) 2.dp else 1.dp,
-                        if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -1478,14 +1621,14 @@ fun FiltersTabContent(viewModel: MainViewModel) {
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(
                                     Brush.linearGradient(
-                                        listOf(Color(0xFF6750A4), Color(0xFFEADDFF))
+                                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primaryContainer)
                                     )
                                 )
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = filter,
-                            color = if (isSelected) Color(0xFF21005D) else Color(0xFF1D1B20),
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1504,15 +1647,15 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "PROFESSIONAL WATERMARK", fontSize = 12.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
+            Text(text = "PROFESSIONAL WATERMARK", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Show", fontSize = 11.sp, color = Color(0xFF49454F), modifier = Modifier.padding(end = 4.dp))
+                Text("Show", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 4.dp))
                 Switch(
                     checked = viewModel.showWatermark,
                     onCheckedChange = { viewModel.showWatermark = it },
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF6750A4)
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier.testTag("show_watermark_switch")
                 )
@@ -1524,16 +1667,16 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
             value = viewModel.watermarkText,
             onValueChange = { viewModel.watermarkText = it },
             enabled = viewModel.showWatermark,
-            label = { Text("Watermark branding text", color = if (viewModel.showWatermark) Color(0xFF49454F) else Color(0xFFCAC4D0)) },
+            label = { Text("Watermark branding text", color = if (viewModel.showWatermark) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline) },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color(0xFF1D1B20),
-                unfocusedTextColor = Color(0xFF1D1B20),
-                disabledTextColor = Color(0xFFCAC4D0),
-                focusedBorderColor = Color(0xFF6750A4),
-                unfocusedBorderColor = Color(0xFFCAC4D0),
-                disabledBorderColor = Color(0xFFEADDFF).copy(alpha = 0.5f),
-                focusedLabelColor = Color(0xFF6750A4),
-                unfocusedLabelColor = Color(0xFF49454F)
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledTextColor = MaterialTheme.colorScheme.outline,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                disabledBorderColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
             ),
             singleLine = true,
             modifier = Modifier
@@ -1546,7 +1689,7 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
         // Opacity slider
         Text(
             text = "Opacity: ${(viewModel.watermarkOpacity * 100).toInt()}%",
-            color = if (viewModel.showWatermark) Color(0xFF1D1B20) else Color(0xFFCAC4D0),
+            color = if (viewModel.showWatermark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
             fontSize = 12.sp
         )
         Slider(
@@ -1555,11 +1698,11 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
             enabled = viewModel.showWatermark,
             valueRange = 0f..1f,
             colors = SliderDefaults.colors(
-                thumbColor = Color(0xFF6750A4),
-                activeTrackColor = Color(0xFF6750A4),
-                inactiveTrackColor = Color(0xFFCAC4D0),
-                disabledThumbColor = Color(0xFFCAC4D0),
-                disabledActiveTrackColor = Color(0xFFEADDFF).copy(alpha = 0.5f)
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.outline,
+                disabledThumbColor = MaterialTheme.colorScheme.outline,
+                disabledActiveTrackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
             ),
             modifier = Modifier.testTag("watermark_opacity_slider")
         )
@@ -1569,7 +1712,7 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
         // Badge selectors
         Text(
             text = "Select Branding Hue:",
-            color = if (viewModel.showWatermark) Color(0xFF49454F) else Color(0xFFCAC4D0),
+            color = if (viewModel.showWatermark) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1580,14 +1723,14 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
             listOf("White", "Black", "Gold", "Accent").forEach { color ->
                 val isSelected = viewModel.watermarkColorName == color
                 val background = when {
-                    !viewModel.showWatermark -> Color(0xFFF3EDF7).copy(alpha = 0.5f)
-                    isSelected -> Color(0xFF6750A4)
-                    else -> Color(0xFFF3EDF7)
+                    !viewModel.showWatermark -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    isSelected -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.surfaceVariant
                 }
                 val textColor = when {
-                    !viewModel.showWatermark -> Color(0xFFCAC4D0)
-                    isSelected -> Color.White
-                    else -> Color(0xFF49454F)
+                    !viewModel.showWatermark -> MaterialTheme.colorScheme.outline
+                    isSelected -> MaterialTheme.colorScheme.onPrimary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 Text(
                     text = color,
@@ -1609,8 +1752,8 @@ fun WatermarkTabContent(viewModel: MainViewModel) {
 @Composable
 fun BatchTabContent(viewModel: MainViewModel) {
     Column {
-        Text(text = "BATCH MULTI-CELL ACTIONS", fontSize = 12.sp, color = Color(0xFF49454F), fontWeight = FontWeight.Bold)
-        Text(text = "Apply rapid changes to streamline your creation process instantly:", fontSize = 11.sp, color = Color(0xFF49454F), modifier = Modifier.padding(vertical = 4.dp))
+        Text(text = "BATCH MULTI-CELL ACTIONS", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+        Text(text = "Apply rapid changes to streamline your creation process instantly:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 4.dp))
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
@@ -1661,17 +1804,17 @@ fun BatchActionButton(
     OutlinedButton(
         onClick = onClick,
         colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Color.White,
-            contentColor = Color(0xFF1D1B20)
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ),
-        border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         shape = RoundedCornerShape(12.dp),
         modifier = modifier
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(imageVector = vector, contentDescription = label, tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
+            Icon(imageVector = vector, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+            Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -1722,63 +1865,155 @@ private fun getCollageSlots(size: Int, template: Int): List<CollageSlot> {
     val list = mutableListOf<CollageSlot>()
     when (size) {
         2 -> {
-            if (template == 0) { // Vertical halves
-                list.add(CollageSlot(0f, 0f, 0.5f, 1.0f))
-                list.add(CollageSlot(0.5f, 0f, 0.5f, 1.0f))
-            } else { // Horizontal halves
-                list.add(CollageSlot(0f, 0f, 1.0f, 0.5f))
-                list.add(CollageSlot(0f, 0.5f, 1.0f, 0.5f))
+            when (template) {
+                0 -> { // Vertical halves
+                    list.add(CollageSlot(0f, 0f, 0.5f, 1.0f))
+                    list.add(CollageSlot(0.5f, 0f, 0.5f, 1.0f))
+                }
+                1 -> { // Horizontal halves
+                    list.add(CollageSlot(0f, 0f, 1.0f, 0.5f))
+                    list.add(CollageSlot(0f, 0.5f, 1.0f, 0.5f))
+                }
+                2 -> { // Left 1/3, Right 2/3
+                    list.add(CollageSlot(0f, 0f, 1/3f, 1.0f))
+                    list.add(CollageSlot(1/3f, 0f, 2/3f, 1.0f))
+                }
+                3 -> { // Top 1/3, Bottom 2/3
+                    list.add(CollageSlot(0f, 0f, 1.0f, 1/3f))
+                    list.add(CollageSlot(0f, 1/3f, 1.0f, 2/3f))
+                }
+                else -> {
+                    list.add(CollageSlot(0f, 0f, 0.5f, 1.0f))
+                    list.add(CollageSlot(0.5f, 0f, 0.5f, 1.0f))
+                }
             }
         }
         4 -> {
-            if (template == 0) { // 2x2 standard
-                list.add(CollageSlot(0f, 0f, 0.5f, 0.5f))
-                list.add(CollageSlot(0.5f, 0f, 0.5f, 0.5f))
-                list.add(CollageSlot(0f, 0.5f, 0.5f, 0.5f))
-                list.add(CollageSlot(0.5f, 0.5f, 0.5f, 0.5f))
-            } else { // Asymmetric focus
-                list.add(CollageSlot(0f, 0f, 0.6f, 1.0f))
-                list.add(CollageSlot(0.6f, 0f, 0.4f, 1/3f))
-                list.add(CollageSlot(0.6f, 1/3f, 0.4f, 1/3f))
-                list.add(CollageSlot(0.6f, 2/3f, 0.4f, 1/3f))
+            when (template) {
+                0 -> { // 2x2 standard
+                    list.add(CollageSlot(0f, 0f, 0.5f, 0.5f))
+                    list.add(CollageSlot(0.5f, 0f, 0.5f, 0.5f))
+                    list.add(CollageSlot(0f, 0.5f, 0.5f, 0.5f))
+                    list.add(CollageSlot(0.5f, 0.5f, 0.5f, 0.5f))
+                }
+                1 -> { // Asymmetric focus
+                    list.add(CollageSlot(0f, 0f, 0.6f, 1.0f))
+                    list.add(CollageSlot(0.6f, 0f, 0.4f, 1/3f))
+                    list.add(CollageSlot(0.6f, 1/3f, 0.4f, 1/3f))
+                    list.add(CollageSlot(0.6f, 2/3f, 0.4f, 1/3f))
+                }
+                2 -> { // Cinematic Strip (Top Hero, 3 bottom)
+                    list.add(CollageSlot(0f, 0f, 1.0f, 0.6f))
+                    list.add(CollageSlot(0f, 0.6f, 1/3f, 0.4f))
+                    list.add(CollageSlot(1/3f, 0.6f, 1/3f, 0.4f))
+                    list.add(CollageSlot(2/3f, 0.6f, 1/3f, 0.4f))
+                }
+                3 -> { // 4 Vertical Pillars
+                    list.add(CollageSlot(0f, 0f, 0.25f, 1.0f))
+                    list.add(CollageSlot(0.25f, 0f, 0.25f, 1.0f))
+                    list.add(CollageSlot(0.5f, 0f, 0.25f, 1.0f))
+                    list.add(CollageSlot(0.75f, 0f, 0.25f, 1.0f))
+                }
+                4 -> { // Spiral
+                    list.add(CollageSlot(0f, 0f, 0.5f, 0.5f))
+                    list.add(CollageSlot(0.5f, 0f, 0.5f, 0.4f))
+                    list.add(CollageSlot(0.6f, 0.4f, 0.4f, 0.6f))
+                    list.add(CollageSlot(0f, 0.5f, 0.6f, 0.5f))
+                }
+                else -> {
+                    list.add(CollageSlot(0f, 0f, 0.5f, 0.5f))
+                    list.add(CollageSlot(0.5f, 0f, 0.5f, 0.5f))
+                    list.add(CollageSlot(0f, 0.5f, 0.5f, 0.5f))
+                    list.add(CollageSlot(0.5f, 0.5f, 0.5f, 0.5f))
+                }
             }
         }
         6 -> {
-            if (template == 0) { // 2 rows, 3 columns
-                for (row in 0..1) {
-                    for (col in 0..2) {
-                        list.add(CollageSlot(col / 3f, row / 2f, 1/3f, 1/2f))
+            when (template) {
+                0 -> { // 2 rows, 3 columns
+                    for (row in 0..1) {
+                        for (col in 0..2) {
+                            list.add(CollageSlot(col / 3f, row / 2f, 1/3f, 1/2f))
+                        }
                     }
                 }
-            } else { // spotlight 1 top, 5 bottom
-                list.add(CollageSlot(0f, 0f, 1.0f, 0.55f))
-                for (col in 0..4) {
-                    list.add(CollageSlot(col / 5f, 0.55f, 0.2f, 0.45f))
+                1 -> { // spotlight 1 top, 5 bottom
+                    list.add(CollageSlot(0f, 0f, 1.0f, 0.55f))
+                    for (col in 0..4) {
+                        list.add(CollageSlot(col / 5f, 0.55f, 0.2f, 0.45f))
+                    }
+                }
+                2 -> { // Vertical Hero Left
+                    list.add(CollageSlot(0f, 0f, 0.55f, 1.0f))
+                    for (row in 0..4) {
+                        list.add(CollageSlot(0.55f, row * 0.2f, 0.45f, 0.2f))
+                    }
+                }
+                3 -> { // 3 rows, 2 columns
+                    for (row in 0..2) {
+                        for (col in 0..1) {
+                            list.add(CollageSlot(col / 2f, row / 3f, 0.5f, 1/3f))
+                        }
+                    }
+                }
+                else -> {
+                    for (row in 0..1) {
+                        for (col in 0..2) {
+                            list.add(CollageSlot(col / 3f, row / 2f, 1/3f, 1/2f))
+                        }
+                    }
                 }
             }
         }
         9 -> {
-            if (template == 0) { // 3 rows, 3 col
-                for (row in 0..2) {
-                    for (col in 0..2) {
-                        list.add(CollageSlot(col / 3f, row / 3f, 1/3f, 1/3f))
+            when (template) {
+                0 -> { // 3 rows, 3 col
+                    for (row in 0..2) {
+                        for (col in 0..2) {
+                            list.add(CollageSlot(col / 3f, row / 3f, 1/3f, 1/3f))
+                        }
                     }
                 }
-            } else { // center spotlight, 8 surround
-                val s = 1/3f
-                list.add(CollageSlot(s, s, s, s)) // center at index 0
-                list.add(CollageSlot(0f, 0f, s, s))
-                list.add(CollageSlot(s, 0f, s, s))
-                list.add(CollageSlot(s * 2, 0f, s, s))
-                list.add(CollageSlot(0f, s, s, s))
-                list.add(CollageSlot(s * 2, s, s, s))
-                list.add(CollageSlot(0f, s * 2, s, s))
-                list.add(CollageSlot(s, s * 2, s, s))
-                list.add(CollageSlot(s * 2, s * 2, s, s))
+                1 -> { // center spotlight, 8 surround
+                    val s = 1/3f
+                    list.add(CollageSlot(s, s, s, s)) // center at index 0
+                    list.add(CollageSlot(0f, 0f, s, s))
+                    list.add(CollageSlot(s, 0f, s, s))
+                    list.add(CollageSlot(s * 2, 0f, s, s))
+                    list.add(CollageSlot(0f, s, s, s))
+                    list.add(CollageSlot(s * 2, s, s, s))
+                    list.add(CollageSlot(0f, s * 2, s, s))
+                    list.add(CollageSlot(s, s * 2, s, s))
+                    list.add(CollageSlot(s * 2, s * 2, s, s))
+                }
+                2 -> { // Column showcase
+                    for (row in 0..2) {
+                        list.add(CollageSlot(0f, row / 3f, 0.5f, 1/3f))
+                    }
+                    for (row in 0..2) {
+                        list.add(CollageSlot(0.5f, row / 3f, 0.25f, 1/3f))
+                    }
+                    for (row in 0..2) {
+                        list.add(CollageSlot(0.75f, row / 3f, 0.25f, 1/3f))
+                    }
+                }
+                3 -> { // Giant top hero, 8 below
+                    list.add(CollageSlot(0f, 0f, 1.0f, 0.5f))
+                    for (col in 0..3) {
+                        list.add(CollageSlot(col * 0.25f, 0.5f, 0.25f, 0.25f))
+                    }
+                    for (col in 0..3) {
+                        list.add(CollageSlot(col * 0.25f, 0.75f, 0.25f, 0.25f))
+                    }
+                }
+                else -> {
+                    for (row in 0..2) {
+                        for (col in 0..2) {
+                            list.add(CollageSlot(col / 3f, row / 3f, 1/3f, 1/3f))
+                        }
+                    }
+                }
             }
-        }
-        else -> {
-            list.add(CollageSlot(0f, 0f, 1.0f, 1.0f))
         }
     }
     return list
@@ -1803,7 +2038,7 @@ fun SettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF7FF))
+                    .background(MaterialTheme.colorScheme.background)
                     .statusBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -1812,19 +2047,19 @@ fun SettingsScreen(
                     Icon(
                         imageVector = Icons.Filled.ArrowBack,
                         contentDescription = "Back to dashboard",
-                        tint = Color(0xFF1D1B20)
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Settings & Local Storage",
-                    color = Color(0xFF1D1B20),
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Black
                 )
             }
         },
-        containerColor = Color(0xFFFEF7FF)
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -1838,8 +2073,8 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("about_app_card"),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1847,10 +2082,10 @@ fun SettingsScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF6750A4)),
+                                .background(MaterialTheme.colorScheme.primary),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.Info, "Info Icon", tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.Info, "Info Icon", tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -1858,12 +2093,12 @@ fun SettingsScreen(
                                 text = "Picture Collage Pro",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1D1B20)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Version v1.0.4 • Official Stable Build",
+                                text = "Version v1.1.0 • Major Layout Update",
                                 fontSize = 11.sp,
-                                color = Color(0xFF49454F),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -1872,7 +2107,7 @@ fun SettingsScreen(
                     Text(
                         text = "A professional design suite enabling you to customize layouts, linear color filter spectrums, and fine opacity watermarking. Saves all exports directly to external local storage safely.",
                         fontSize = 12.sp,
-                        color = Color(0xFF49454F),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 16.sp
                     )
                 }
@@ -1882,29 +2117,29 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("github_updates_card"),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "GITHUB INTERACTIVE UPDATES",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6750A4)
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Check online repository status structure to align with security, stability, or visual updates.",
                         fontSize = 12.sp,
-                        color = Color(0xFF49454F)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
                     if (viewModel.isCheckingUpdates) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF6750A4))
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text("Querying GitHub releases catalog...", fontSize = 12.sp, color = Color(0xFF49454F))
+                            Text("Querying GitHub releases catalog...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         viewModel.updateMessage?.let { msg ->
@@ -1912,13 +2147,13 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFEADDFF))
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
                                     .padding(12.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Filled.Check, "Checked", tint = Color(0xFF21005D), modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Check, "Checked", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text(text = msg, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF21005D))
+                                    Text(text = msg, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -1926,11 +2161,14 @@ fun SettingsScreen(
 
                         Button(
                             onClick = { viewModel.checkForGithubUpdates() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth().testTag("git_check_btn")
                         ) {
-                            Icon(Icons.Filled.Refresh, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Filled.Refresh, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Check GitHub for Updates", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
@@ -1942,15 +2180,15 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth().testTag("quality_options_card"),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "SAVING & QUALITY PREFERENCES",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF6750A4),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 
@@ -1961,25 +2199,25 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Uncompressed High-Quality JPG", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
-                            Text(text = "Renders collage outputs at 95% ratio (default 75%)", fontSize = 11.sp, color = Color(0xFF49454F))
+                            Text(text = "Uncompressed High-Quality JPG", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text(text = "Renders collage outputs at 95% ratio (default 75%)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(
                             checked = viewModel.highQualityExport,
                             onCheckedChange = { viewModel.highQualityExport = it },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4)
+                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary
                             ),
                             modifier = Modifier.testTag("hq_export_switch")
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFCAC4D0), thickness = 0.5.dp)
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), thickness = 0.5.dp)
 
                     // Grid startup
-                    Text(text = "Default Startup Templates Size", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
-                    Text(text = "Determine preferred number of starting canvas blocks:", fontSize = 11.sp, color = Color(0xFF49454F), modifier = Modifier.padding(bottom = 8.dp))
+                    Text(text = "Default Startup Templates Size", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(text = "Determine preferred number of starting canvas blocks:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1993,10 +2231,10 @@ fun SettingsScreen(
                                     viewModel.gridLayoutSize = num
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+                                border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (isSelected) Color(0xFFEADDFF) else Color.Transparent,
-                                    contentColor = if (isSelected) Color(0xFF21005D) else Color(0xFF49454F)
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                 ),
                                 modifier = Modifier.weight(1f).testTag("default_grid_$num")
                             ) {
@@ -2012,7 +2250,7 @@ fun SettingsScreen(
                 text = "EXPORTED COLLAGES FILE EXPLORER",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF6750A4),
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
             )
 
@@ -2020,8 +2258,8 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth().testTag("empty_files_card"),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFCAC4D0).copy(alpha = 0.5f))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 ) {
                     Column(
                         modifier = Modifier.padding(24.dp),
@@ -2030,7 +2268,7 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Filled.Folder,
                             contentDescription = "Empty File Cabinet",
-                            tint = Color(0xFFCAC4D0),
+                            tint = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                             modifier = Modifier.size(52.dp)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
@@ -2038,12 +2276,12 @@ fun SettingsScreen(
                             text = "No saved collages found",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF49454F)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "Your exported high-resolution PDF or JPEG canvas layouts will be listed permanently in this local storage manager.",
                             fontSize = 11.sp,
-                            color = Color(0xFF49454F),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -2061,8 +2299,8 @@ fun SettingsScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth().testTag("local_file_item_${file.name}"),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                         ) {
                             Row(
                                 modifier = Modifier.padding(12.dp),
@@ -2072,13 +2310,13 @@ fun SettingsScreen(
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isPdf) Color(0xFFF9DEDC) else Color(0xFFE8DEF8)),
+                                        .background(if (isPdf) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = if (isPdf) Icons.Filled.Share /* Placeholder standard icon */ else Icons.Filled.Image,
                                         contentDescription = "File Type Type",
-                                        tint = if (isPdf) Color(0xFF8C1D18) else Color(0xFF6750A4),
+                                        tint = if (isPdf) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -2088,13 +2326,13 @@ fun SettingsScreen(
                                         text = file.name,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1D1B20),
+                                        color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1
                                     )
                                     Text(
                                         text = "$formattedSize • Storage Location",
                                         fontSize = 10.sp,
-                                        color = Color(0xFF49454F)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
 
@@ -2122,7 +2360,7 @@ fun SettingsScreen(
                                         },
                                         modifier = Modifier.size(32.dp).testTag("open_file_${file.name}")
                                     ) {
-                                        Icon(Icons.Filled.Share, "Preview", tint = Color(0xFF6750A4), modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Filled.Share, "Preview", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                     }
 
                                     // Share (System Intents)
@@ -2142,7 +2380,7 @@ fun SettingsScreen(
                                         },
                                         modifier = Modifier.size(32.dp).testTag("share_file_${file.name}")
                                     ) {
-                                        Icon(Icons.Filled.Share, "Share", tint = Color(0xFF49454F), modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Filled.Share, "Share", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                                     }
 
                                     // Delete
@@ -2160,7 +2398,7 @@ fun SettingsScreen(
                                         },
                                         modifier = Modifier.size(32.dp).testTag("delete_file_${file.name}")
                                     ) {
-                                        Icon(Icons.Filled.Delete, "Delete", tint = Color(0xFFBA1A1A), modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Filled.Delete, "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                                     }
                                 }
                             }
@@ -2181,4 +2419,105 @@ private fun formatSizeInKB(bytes: Long): String {
     if (kb < 1024) return String.format(Locale.US, "%.1f KB", kb)
     val mb = kb / 1024f
     return String.format(Locale.US, "%.1f MB", mb)
+}
+
+@Composable
+fun CloudSyncDialog(viewModel: MainViewModel) {
+    val syncProgressText by viewModel.syncProgressText.collectAsStateWithLifecycle()
+    val isSyncing by viewModel.isSyncing.collectAsStateWithLifecycle()
+    var tempCode by remember { mutableStateOf(viewModel.syncCode) }
+    
+    AlertDialog(
+        onDismissRequest = { if (!isSyncing) viewModel.showSyncDialog = false },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.Sync,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Cross-Device Cloud Sync")
+            }
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Synchronize your collage projects dynamically across all your devices using a shared secure Profile Key.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = tempCode,
+                    onValueChange = { 
+                        if (!isSyncing) {
+                            tempCode = it.trim().uppercase(Locale.US)
+                        }
+                    },
+                    label = { Text("Profile Sync Code") },
+                    placeholder = { Text("e.g. MY-COLLAGE-SYNC") },
+                    singleLine = true,
+                    enabled = !isSyncing,
+                    modifier = Modifier.fillMaxWidth().testTag("sync_code_input")
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Tip: Enter the exact same Sync Code on another device to merge and sync your creations seamlessly!",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                if (isSyncing || syncProgressText != "Ready to synchronize") {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (isSyncing) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            Text(
+                                text = syncProgressText,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    viewModel.updateSyncCode(tempCode)
+                    viewModel.syncProjectsToCloud()
+                },
+                enabled = !isSyncing && tempCode.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                modifier = Modifier.testTag("sync_now_btn")
+            ) {
+                Text("Sync Now")
+            }
+        },
+        dismissButton = {
+            if (!isSyncing) {
+                TextButton(
+                    onClick = { viewModel.showSyncDialog = false },
+                    modifier = Modifier.testTag("sync_cancel_btn")
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    )
 }

@@ -25,6 +25,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.CollageProject
 import com.example.data.ProjectRepository
+import com.example.data.FirebaseManager
+import com.example.data.awaitTask
+import android.util.Log
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,6 +95,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
+    // Sync Code for cross-device cloud sync
+    var syncCode by mutableStateOf("")
+    
+    // Detailed real-time progress text
+    private val _syncProgressText = MutableStateFlow("Ready to synchronize")
+    val syncProgressText: StateFlow<String> = _syncProgressText.asStateFlow()
+    
+    // Dialog visibility state
+    var showSyncDialog by mutableStateOf(false)
+
     // Sharing / File generation state
     private val _shareFileProgress = MutableStateFlow<String?>(null)
     val shareFileProgress: StateFlow<String?> = _shareFileProgress.asStateFlow()
@@ -106,6 +120,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val db = AppDatabase.getDatabase(application)
         repository = ProjectRepository(db.projectDao())
         
+        // Load sync profile key
+        val sharedPrefs = application.getSharedPreferences("collage_sync_prefs", Context.MODE_PRIVATE)
+        var loadedKey = sharedPrefs.getString("sync_key", "") ?: ""
+        if (loadedKey.isBlank()) {
+            loadedKey = "SYNC-${(100000..999999).random()}"
+            sharedPrefs.edit().putString("sync_key", loadedKey).apply()
+        }
+        syncCode = loadedKey
+        
         // Expose projects reactive flow
         val flow = MutableStateFlow<List<CollageProject>>(emptyList())
         viewModelScope.launch {
@@ -114,6 +137,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         projects = flow
+    }
+
+    // Save/update sync code
+    fun updateSyncCode(newCode: String) {
+        val cleanCode = newCode.trim().uppercase(Locale.US)
+        if (cleanCode.isNotBlank()) {
+            syncCode = cleanCode
+            val sharedPrefs = getApplication<Application>().getSharedPreferences("collage_sync_prefs", Context.MODE_PRIVATE)
+            sharedPrefs.edit().putString("sync_key", cleanCode).apply()
+        }
     }
 
     // Load or create a project
@@ -352,16 +385,152 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         Toast.makeText(getApplication(), "Cleared all slots", Toast.LENGTH_SHORT).show()
     }
 
-    // Cloud storage syncing simulator - fully integrates the requirement with visual real-time feedback
+    // Cloud storage syncing: fully connects with Firebase Firestore and synchronizes projects bidirectionally
     fun syncProjectsToCloud() {
         viewModelScope.launch {
             _isSyncing.value = true
-            // Simulate networking latency or API connectivity
-            delay(2500)
-            repository.markAllAsSynced()
-            _isSyncing.value = false
-            withContext(Dispatchers.Main) {
-                Toast.makeText(getApplication(), "All projects synchronized with Secure Cloud Backup!", Toast.LENGTH_LONG).show()
+            _syncProgressText.value = "Initializing secure Cloud connection..."
+            
+            val context = getApplication<Application>()
+            FirebaseManager.init(context)
+            val firestore = FirebaseManager.getFirestore()
+            
+            if (firestore == null) {
+                _isSyncing.value = false
+                _syncProgressText.value = "Cloud Sync Offline (No Instance)"
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Secure cloud sync is temporarily offline (Missing Firestore configuration)", Toast.LENGTH_LONG).show()
+                }
+                return@launch
+            }
+
+            try {
+                _syncProgressText.value = "Fetching local projects list..."
+                val localProjects = repository.allProjects.first()
+                
+                _syncProgressText.value = "Connecting to profile key: $syncCode..."
+                val syncRef = firestore.collection("sync_profiles").document(syncCode).collection("projects")
+                
+                // 1. Fetch all project documents from cloud for this sync code
+                _syncProgressText.value = "Reading cloud database state..."
+                val cloudQuerySnapshot = syncRef.get().awaitTask()
+                val cloudProjectsMap = mutableMapOf<String, Map<String, Any>>()
+                for (doc in cloudQuerySnapshot.documents) {
+                    val data = doc.data
+                    if (data != null) {
+                        val name = data["name"] as? String ?: ""
+                        if (name.isNotBlank()) {
+                            cloudProjectsMap[name] = data
+                        }
+                    }
+                }
+                
+                var uploadedCount = 0
+                var downloadedCount = 0
+                var updatedCount = 0
+                
+                // 2. Upload or update local projects in Firestore
+                for (local in localProjects) {
+                    val cloudData = cloudProjectsMap[local.name]
+                    if (cloudData == null) {
+                        // Project does not exist in the cloud yet, upload it!
+                        _syncProgressText.value = "Uploading local project '${local.name}'..."
+                        val docData = hashMapOf(
+                            "name" to local.name,
+                            "timestamp" to local.timestamp,
+                            "gridLayoutSize" to local.gridLayoutSize,
+                            "templateIndex" to local.templateIndex,
+                            "imagePathsString" to local.imagePathsString,
+                            "filterName" to local.filterName,
+                            "watermarkText" to local.watermarkText,
+                            "isColorOutput" to local.isColorOutput
+                        )
+                        syncRef.document(local.name).set(docData).awaitTask()
+                        repository.update(local.copy(isSynced = true))
+                        uploadedCount++
+                    } else {
+                        // Project exists in both. Compare timestamps.
+                        val cloudTimestamp = (cloudData["timestamp"] as? Number)?.toLong() ?: 0L
+                        if (local.timestamp > cloudTimestamp) {
+                            // Local version is newer, upload and overwrite cloud!
+                            _syncProgressText.value = "Syncing newer local details for '${local.name}'..."
+                            val docData = hashMapOf(
+                                "name" to local.name,
+                                "timestamp" to local.timestamp,
+                                "gridLayoutSize" to local.gridLayoutSize,
+                                "templateIndex" to local.templateIndex,
+                                "imagePathsString" to local.imagePathsString,
+                                "filterName" to local.filterName,
+                                "watermarkText" to local.watermarkText,
+                                "isColorOutput" to local.isColorOutput
+                            )
+                            syncRef.document(local.name).set(docData).awaitTask()
+                            repository.update(local.copy(isSynced = true))
+                            updatedCount++
+                        }
+                    }
+                }
+                
+                // 3. Download or update local projects with newer cloud projects
+                for ((name, cloudData) in cloudProjectsMap) {
+                    val local = localProjects.find { it.name == name }
+                    val cloudTimestamp = (cloudData["timestamp"] as? Number)?.toLong() ?: 0L
+                    val gridLayoutSize = (cloudData["gridLayoutSize"] as? Number)?.toInt() ?: 4
+                    val templateIndex = (cloudData["templateIndex"] as? Number)?.toInt() ?: 0
+                    val imagePathsString = cloudData["imagePathsString"] as? String ?: ""
+                    val filterName = cloudData["filterName"] as? String ?: "Classic"
+                    val watermarkText = cloudData["watermarkText"] as? String ?: "CollagePro"
+                    val isColorOutput = cloudData["isColorOutput"] as? Boolean ?: true
+                    
+                    if (local == null) {
+                        // Project exists in cloud but not locally, download it!
+                        _syncProgressText.value = "Downloading cloud creation '${name}'..."
+                        val newProject = CollageProject(
+                            name = name,
+                            timestamp = cloudTimestamp,
+                            gridLayoutSize = gridLayoutSize,
+                            templateIndex = templateIndex,
+                            imagePathsString = imagePathsString,
+                            filterName = filterName,
+                            watermarkText = watermarkText,
+                            isColorOutput = isColorOutput,
+                            isSynced = true
+                        )
+                        repository.insert(newProject)
+                        downloadedCount++
+                    } else if (cloudTimestamp > local.timestamp) {
+                        // Cloud version is newer, update local DB details!
+                        _syncProgressText.value = "Updating local project '${name}'..."
+                        val updatedProject = local.copy(
+                            timestamp = cloudTimestamp,
+                            gridLayoutSize = gridLayoutSize,
+                            templateIndex = templateIndex,
+                            imagePathsString = imagePathsString,
+                            filterName = filterName,
+                            watermarkText = watermarkText,
+                            isColorOutput = isColorOutput,
+                            isSynced = true
+                        )
+                        repository.update(updatedProject)
+                        updatedCount++
+                    }
+                }
+                
+                _syncProgressText.value = "Cloud synchronization finished successfully! 🎉"
+                delay(1200)
+                
+                withContext(Dispatchers.Main) {
+                    val msg = "Sync Completed! Uploaded: $uploadedCount | Downloaded: $downloadedCount | Synced: $updatedCount"
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Sync Error: ${e.message}", e)
+                _syncProgressText.value = "Sync Interrupted: ${e.localizedMessage ?: "Unknown Error"}"
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Cloud Sync Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                _isSyncing.value = false
             }
         }
     }
@@ -460,7 +629,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Draw each slot
                 for (i in 0 until gridLayoutSize) {
                     if (i < slots.size && i < activeImages.size) {
-                        val rect = slots[i]
+                        val originalRect = slots[i]
+                        val outerPaddingPx = 12f
+                        val slotPaddingPx = 8f
+                        val fSizeOffset = collageSize.toFloat() - 2 * outerPaddingPx
+                        
+                        val rect = SimpleRect(
+                            left = (originalRect.left / collageSize) * fSizeOffset + outerPaddingPx + slotPaddingPx,
+                            right = (originalRect.right / collageSize) * fSizeOffset + outerPaddingPx - slotPaddingPx,
+                            top = (originalRect.top / collageSize) * fSizeOffset + outerPaddingPx + slotPaddingPx,
+                            bottom = (originalRect.bottom / collageSize) * fSizeOffset + outerPaddingPx - slotPaddingPx
+                        )
                         val indexInPreset = activeImages[i]
                         
                         // Render Preset design color block with premium gradient or artwork
@@ -730,77 +909,172 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         when (size) {
             2 -> {
-                if (template == 0) { // Vertical split
-                    list.add(SimpleRect(0f, 0f, fSize / 2, fSize))
-                    list.add(SimpleRect(fSize / 2, 0f, fSize, fSize))
-                } else { // Horizontal split
-                    list.add(SimpleRect(0f, 0f, fSize, fSize / 2))
-                    list.add(SimpleRect(0f, fSize / 2, fSize, fSize))
+                when (template) {
+                    0 -> { // Vertical split
+                        list.add(SimpleRect(0f, 0f, fSize / 2, fSize))
+                        list.add(SimpleRect(fSize / 2, 0f, fSize, fSize))
+                    }
+                    1 -> { // Horizontal split
+                        list.add(SimpleRect(0f, 0f, fSize, fSize / 2))
+                        list.add(SimpleRect(0f, fSize / 2, fSize, fSize))
+                    }
+                    2 -> { // Left 1/3, Right 2/3
+                        list.add(SimpleRect(0f, 0f, fSize / 3f, fSize))
+                        list.add(SimpleRect(fSize / 3f, 0f, fSize, fSize))
+                    }
+                    3 -> { // Top 1/3, Bottom 2/3
+                        list.add(SimpleRect(0f, 0f, fSize, fSize / 3f))
+                        list.add(SimpleRect(0f, fSize / 3f, fSize, fSize))
+                    }
+                    else -> {
+                        list.add(SimpleRect(0f, 0f, fSize / 2, fSize))
+                        list.add(SimpleRect(fSize / 2, 0f, fSize, fSize))
+                    }
                 }
             }
             4 -> {
-                if (template == 0) { // Standard 2x2 equal grid
-                    val h = fSize / 2
-                    list.add(SimpleRect(0f, 0f, h, h))
-                    list.add(SimpleRect(h, 0f, fSize, h))
-                    list.add(SimpleRect(0f, h, h, fSize))
-                    list.add(SimpleRect(h, h, fSize, fSize))
-                } else { // Accent Layout - 1 Tall Left Panel, 3 horizontal right stacks
-                    val wLeft = fSize * 0.6f
-                    val wRight = fSize * 0.4f
-                    val hStack = fSize / 3
-                    list.add(SimpleRect(0f, 0f, wLeft, fSize))
-                    list.add(SimpleRect(wLeft, 0f, fSize, hStack))
-                    list.add(SimpleRect(wLeft, hStack, fSize, hStack * 2))
-                    list.add(SimpleRect(wLeft, hStack * 2, fSize, fSize))
+                when (template) {
+                    0 -> { // Standard 2x2 equal grid
+                        val h = fSize / 2
+                        list.add(SimpleRect(0f, 0f, h, h))
+                        list.add(SimpleRect(h, 0f, fSize, h))
+                        list.add(SimpleRect(0f, h, h, fSize))
+                        list.add(SimpleRect(h, h, fSize, fSize))
+                    }
+                    1 -> { // Accent Layout - 1 Tall Left Panel, 3 horizontal right stacks
+                        val wLeft = fSize * 0.6f
+                        val hStack = fSize / 3
+                        list.add(SimpleRect(0f, 0f, wLeft, fSize))
+                        list.add(SimpleRect(wLeft, 0f, fSize, hStack))
+                        list.add(SimpleRect(wLeft, hStack, fSize, hStack * 2))
+                        list.add(SimpleRect(wLeft, hStack * 2, fSize, fSize))
+                    }
+                    2 -> { // Cinematic Strip
+                        list.add(SimpleRect(0f, 0f, fSize, fSize * 0.6f))
+                        list.add(SimpleRect(0f, fSize * 0.6f, fSize / 3, fSize))
+                        list.add(SimpleRect(fSize / 3, fSize * 0.6f, fSize * 2/3, fSize))
+                        list.add(SimpleRect(fSize * 2/3, fSize * 0.6f, fSize, fSize))
+                    }
+                    3 -> { // Pillars
+                        list.add(SimpleRect(0f, 0f, fSize * 0.25f, fSize))
+                        list.add(SimpleRect(fSize * 0.25f, 0f, fSize * 0.5f, fSize))
+                        list.add(SimpleRect(fSize * 0.5f, 0f, fSize * 0.75f, fSize))
+                        list.add(SimpleRect(fSize * 0.75f, 0f, fSize, fSize))
+                    }
+                    4 -> { // Spiral
+                        list.add(SimpleRect(0f, 0f, fSize * 0.5f, fSize * 0.5f))
+                        list.add(SimpleRect(fSize * 0.5f, 0f, fSize, fSize * 0.4f))
+                        list.add(SimpleRect(fSize * 0.6f, fSize * 0.4f, fSize, fSize))
+                        list.add(SimpleRect(0f, fSize * 0.5f, fSize * 0.6f, fSize))
+                    }
+                    else -> {
+                        val h = fSize / 2
+                        list.add(SimpleRect(0f, 0f, h, h))
+                        list.add(SimpleRect(h, 0f, fSize, h))
+                        list.add(SimpleRect(0f, h, h, fSize))
+                        list.add(SimpleRect(h, h, fSize, fSize))
+                    }
                 }
             }
             6 -> {
-                if (template == 0) { // 2x3 Grid
-                    val h = fSize / 2
-                    val w = fSize / 3
-                    for (row in 0 until 2) {
-                        for (col in 0 until 3) {
-                            list.add(SimpleRect(col * w, row * h, (col + 1) * w, (row + 1) * h))
+                when (template) {
+                    0 -> { // 2x3 Grid
+                        val h = fSize / 2
+                        val w = fSize / 3
+                        for (row in 0 until 2) {
+                            for (col in 0 until 3) {
+                                list.add(SimpleRect(col * w, row * h, (col + 1) * w, (row + 1) * h))
+                            }
                         }
                     }
-                } else { // Spotlight layout: 1 massive top center, 5 surrounding bottom slots
-                    val topH = fSize * 0.55f
-                    val botH = fSize * 0.45f
-                    val botW = fSize / 5
-                    // Top item
-                    list.add(SimpleRect(0f, 0f, fSize, topH))
-                    // 5 bottom items
-                    for (i in 0 until 5) {
-                        list.add(SimpleRect(i * botW, topH, (i + 1) * botW, fSize))
+                    1 -> { // Spotlight layout
+                        val topH = fSize * 0.55f
+                        val botW = fSize / 5
+                        list.add(SimpleRect(0f, 0f, fSize, topH))
+                        for (i in 0 until 5) {
+                            list.add(SimpleRect(i * botW, topH, (i + 1) * botW, fSize))
+                        }
+                    }
+                    2 -> { // Vertical Hero Left
+                        val leftW = fSize * 0.55f
+                        for (row in 0 until 5) {
+                            list.add(SimpleRect(leftW, row * fSize * 0.2f, fSize, (row + 1) * fSize * 0.2f))
+                        }
+                        // Hero on left (insert at index 0 to match)
+                        list.add(0, SimpleRect(0f, 0f, leftW, fSize))
+                    }
+                    3 -> { // 3x2 Grid
+                        val h = fSize / 3
+                        val w = fSize / 2
+                        for (row in 0 until 3) {
+                            for (col in 0 until 2) {
+                                list.add(SimpleRect(col * w, row * h, (col + 1) * w, (row + 1) * h))
+                            }
+                        }
+                    }
+                    else -> {
+                        val h = fSize / 2
+                        val w = fSize / 3
+                        for (row in 0 until 2) {
+                            for (col in 0 until 3) {
+                                list.add(SimpleRect(col * w, row * h, (col + 1) * w, (row + 1) * h))
+                            }
+                        }
                     }
                 }
             }
             9 -> {
-                if (template == 0) { // Standard 3x3 equal grid
-                    val sizeSlot = fSize / 3
-                    for (row in 0 until 3) {
-                        for (col in 0 until 3) {
-                            list.add(SimpleRect(col * sizeSlot, row * sizeSlot, (col + 1) * sizeSlot, (row + 1) * sizeSlot))
+                when (template) {
+                    0 -> { // Standard 3x3 equal grid
+                        val sizeSlot = fSize / 3
+                        for (row in 0 until 3) {
+                            for (col in 0 until 3) {
+                                list.add(SimpleRect(col * sizeSlot, row * sizeSlot, (col + 1) * sizeSlot, (row + 1) * sizeSlot))
+                            }
                         }
                     }
-                } else { // Accent Focus Layout (1 center, 8 surrounding outer grid borders)
-                    val s = fSize / 3
-                    // Center Focus slot (index = 0)
-                    list.add(SimpleRect(s, s, s * 2, s * 2))
-                    // Surrounding blocks
-                    list.add(SimpleRect(0f, 0f, s, s))         // Top-Left
-                    list.add(SimpleRect(s, 0f, s * 2, s))      // Top-Mid
-                    list.add(SimpleRect(s * 2, 0f, fSize, s))  // Top-Right
-                    list.add(SimpleRect(0f, s, s, s * 2))      // Mid-Left
-                    list.add(SimpleRect(s * 2, s, fSize, s * 2))// Mid-Right
-                    list.add(SimpleRect(0f, s * 2, s, fSize))  // Bot-Left
-                    list.add(SimpleRect(s, s * 2, s * 2, fSize))// Bot-Mid
-                    list.add(SimpleRect(s * 2, s * 2, fSize, fSize)) // Bot-Right
+                    1 -> { // Accent Focus Layout (1 center, 8 surrounding outer grid borders)
+                        val s = fSize / 3
+                        list.add(SimpleRect(s, s, s * 2, s * 2))
+                        list.add(SimpleRect(0f, 0f, s, s))         // Top-Left
+                        list.add(SimpleRect(s, 0f, s * 2, s))      // Top-Mid
+                        list.add(SimpleRect(s * 2, 0f, fSize, s))  // Top-Right
+                        list.add(SimpleRect(0f, s, s, s * 2))      // Mid-Left
+                        list.add(SimpleRect(s * 2, s, fSize, s * 2))// Mid-Right
+                        list.add(SimpleRect(0f, s * 2, s, fSize))  // Bot-Left
+                        list.add(SimpleRect(s, s * 2, s * 2, fSize))// Bot-Mid
+                        list.add(SimpleRect(s * 2, s * 2, fSize, fSize)) // Bot-Right
+                    }
+                    2 -> { // Column showcase
+                        val s = fSize / 3
+                        for (row in 0 until 3) {
+                            list.add(SimpleRect(0f, row * s, fSize * 0.5f, (row + 1) * s))
+                        }
+                        for (row in 0 until 3) {
+                            list.add(SimpleRect(fSize * 0.5f, row * s, fSize * 0.75f, (row + 1) * s))
+                        }
+                        for (row in 0 until 3) {
+                            list.add(SimpleRect(fSize * 0.75f, row * s, fSize, (row + 1) * s))
+                        }
+                    }
+                    3 -> { // Giant top hero, 8 below
+                        list.add(SimpleRect(0f, 0f, fSize, fSize * 0.5f))
+                        for (col in 0 until 4) {
+                            list.add(SimpleRect(col * fSize * 0.25f, fSize * 0.5f, (col + 1) * fSize * 0.25f, fSize * 0.75f))
+                        }
+                        for (col in 0 until 4) {
+                            list.add(SimpleRect(col * fSize * 0.25f, fSize * 0.75f, (col + 1) * fSize * 0.25f, fSize))
+                        }
+                    }
+                    else -> {
+                        val sizeSlot = fSize / 3
+                        for (row in 0 until 3) {
+                            for (col in 0 until 3) {
+                                list.add(SimpleRect(col * sizeSlot, row * sizeSlot, (col + 1) * sizeSlot, (row + 1) * sizeSlot))
+                            }
+                        }
+                    }
                 }
-            }
-            else -> {
-                list.add(SimpleRect(0f, 0f, fSize, fSize))
             }
         }
         return list
