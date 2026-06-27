@@ -59,6 +59,9 @@ import coil.compose.AsyncImage
 import com.example.data.CollageProject
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.MainViewModel
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
 
 // Layout fractional coordinate model
 data class CollageSlot(
@@ -1143,46 +1146,108 @@ fun CollageWorkspaceCanvas(
     val size = viewModel.gridLayoutSize
     val slots = remember(size, template) { getCollageSlots(size, template) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(1.dp)
     ) {
-        val wPx = constraints.maxWidth
-        val hPx = constraints.maxHeight
+        val wPx = constraints.maxWidth.toFloat()
+        val hPx = constraints.maxHeight.toFloat()
+        val density = LocalContext.current.resources.displayMetrics.density
+
+        val hoverIndex = if (draggingIndex != null) {
+            val draggedSlot = slots.getOrNull(draggingIndex!!)
+            if (draggedSlot != null) {
+                val draggedCenterX = (draggedSlot.leftFraction + draggedSlot.widthFraction / 2f) * wPx + dragOffset.x
+                val draggedCenterY = (draggedSlot.topFraction + draggedSlot.heightFraction / 2f) * hPx + dragOffset.y
+                
+                var found = -1
+                for (i in slots.indices) {
+                    if (i == draggingIndex) continue
+                    val targetSlot = slots[i]
+                    val tLeft = targetSlot.leftFraction * wPx
+                    val tTop = targetSlot.topFraction * hPx
+                    val tRight = tLeft + targetSlot.widthFraction * wPx
+                    val tBottom = tTop + targetSlot.heightFraction * hPx
+                    
+                    if (draggedCenterX in tLeft..tRight && draggedCenterY in tTop..tBottom) {
+                        found = i
+                        break
+                    }
+                }
+                found
+            } else -1
+        } else -1
 
         slots.forEachIndexed { index, slot ->
             val isSelected = viewModel.selectedSlotIndex == index
             val isDragging = draggingIndex == index
+            val isHovered = hoverIndex == index
+
+            val xDp = (slot.leftFraction * wPx / density).dp
+            val yDp = (slot.topFraction * hPx / density).dp
+            val wDp = (slot.widthFraction * wPx / density).dp
+            val hDp = (slot.heightFraction * hPx / density).dp
 
             Box(
                 modifier = Modifier
                     .offset(
-                        x = (slot.leftFraction * wPx / (LocalContext.current.resources.displayMetrics.density)).dp,
-                        y = (slot.topFraction * hPx / (LocalContext.current.resources.displayMetrics.density)).dp
+                        x = if (isDragging) xDp + (dragOffset.x / density).dp else xDp,
+                        y = if (isDragging) yDp + (dragOffset.y / density).dp else yDp
                     )
-                    .size(
-                        width = (slot.widthFraction * wPx / (LocalContext.current.resources.displayMetrics.density)).dp,
-                        height = (slot.heightFraction * hPx / (LocalContext.current.resources.displayMetrics.density)).dp
-                    )
+                    .size(width = wDp, height = hDp)
+                    .zIndex(if (isDragging) 10f else if (isHovered) 5f else 1f)
                     .padding(3.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(
+                        if (isHovered) {
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        }
+                    )
                     .border(
                         BorderStroke(
-                            width = if (isSelected || isDragging) 3.dp else if (viewModel.showBorders) 1.dp else 0.dp,
+                            width = if (isSelected || isDragging || isHovered) 3.dp else if (viewModel.showBorders) 1.dp else 0.dp,
                             color = when {
                                 isSelected -> MaterialTheme.colorScheme.primary
                                 isDragging -> MaterialTheme.colorScheme.primary
+                                isHovered -> MaterialTheme.colorScheme.secondary
                                 else -> if (viewModel.showBorders) MaterialTheme.colorScheme.outline else Color.Transparent
                             }
                         ),
                         shape = RoundedCornerShape(4.dp)
                     )
+                    .pointerInput(size, template, hoverIndex) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { offset ->
+                                draggingIndex = index
+                                dragOffset = Offset.Zero
+                                viewModel.selectedSlotIndex = index
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragOffset += dragAmount
+                            },
+                            onDragEnd = {
+                                if (hoverIndex != -1 && hoverIndex != index) {
+                                    viewModel.swapSlots(index, hoverIndex)
+                                    viewModel.selectedSlotIndex = hoverIndex
+                                }
+                                draggingIndex = null
+                                dragOffset = Offset.Zero
+                            },
+                            onDragCancel = {
+                                draggingIndex = null
+                                dragOffset = Offset.Zero
+                            }
+                        )
+                    }
                     .combinedClickable(
                         onLongClick = {
-                            // High interactive Swap Mode
+                            // High interactive Swap Mode fallback
                             if (draggingIndex == null) {
                                 draggingIndex = index
                                 viewModel.selectedSlotIndex = index
@@ -1298,6 +1363,30 @@ fun CollageWorkspaceCanvas(
                             fontWeight = FontWeight.Black,
                             fontSize = 11.sp
                         )
+                    }
+                }
+
+                // Hover / Drop target overlay
+                if (isHovered) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.secondary)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "DROP TO SWAP",
+                                color = MaterialTheme.colorScheme.onSecondary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp
+                            )
+                        }
                     }
                 }
             }

@@ -764,9 +764,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (format == "PDF") {
                     val pdfDocument = PdfDocument()
-                    val pageInfo = PdfDocument.PageInfo.Builder(collageSize, collageSize, 1).create()
+                    // Standard A4 paper size in postscript points (1/72 inch): 595 x 842 points
+                    val a4Width = 595
+                    val a4Height = 842
+                    val pageInfo = PdfDocument.PageInfo.Builder(a4Width, a4Height, 1).create()
                     val page = pdfDocument.startPage(pageInfo)
-                    page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                    
+                    // Calculate scaling to fit the collage bitmap centered on the A4 portrait page
+                    val margin = 36f // 0.5 inch margins
+                    val targetWidth = a4Width - (2 * margin)
+                    val scale = targetWidth / bitmap.width.toFloat()
+                    val targetHeight = bitmap.height.toFloat() * scale
+                    
+                    val left = margin
+                    val top = (a4Height - targetHeight) / 2f
+                    val right = left + targetWidth
+                    val bottom = top + targetHeight
+                    
+                    val destRect = android.graphics.RectF(left, top, right, bottom)
+                    page.canvas.drawBitmap(bitmap, null, destRect, null)
                     pdfDocument.finishPage(page)
                     
                     // Save to shared cache
