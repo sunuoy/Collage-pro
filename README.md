@@ -1,21 +1,78 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+
+# 🎨 Collage Pro
+
+**The ultimate modern Android application for crafting stunning photo collages, custom layouts, and exporting professional A4 PDF documents.**
+
+[![Android](https://img.shields.io/badge/Platform-Android-green.svg?style=flat&logo=android)](https://developer.android.com)
+[![Kotlin](https://img.shields.io/badge/Language-Kotlin-purple.svg?style=flat&logo=kotlin)](https://kotlinlang.org/)
+[![Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-blue.svg?style=flat&logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
+[![Release](https://img.shields.io/badge/Release-v1.1.0-brightgreen.svg)](https://github.com/sunuoy/Collage-pro/releases)
+
+---
+
 </div>
 
-# Run and deploy your AI Studio app
+## 🚀 Key Features
 
-This contains everything you need to run your app locally.
+### 🖼️ Smart Photo Collage Creation
+- **Flexible Grid Templates**: Choose from a variety of multi-photo grid templates tailored for portraits, landscapes, and social media posts.
+- **Interactive Drag-and-Drop**: Effortlessly rearrange, swap, scale, and align photos with responsive touch controls.
+- **Custom Borders & Drop Shadows**: Add depth to your creations with real-time drop shadow adjustments, border spacing, and rounded corner sliders.
 
-View your app in AI Studio: https://ai.studio/apps/989ecb1b-9421-415a-a82a-fe86a9f5abe0
+### 📄 Professional A4 PDF Export
+- **Orientation Toggle (Portrait & Landscape)**: Export your collages directly into print-ready A4 PDF documents with a single tap.
+- **High-Resolution Output**: Preserves image quality for sharp printing and digital sharing.
 
-## Run Locally
+### 🤖 AI Studio & Smart Enhancements
+- **Powered by Gemini & Firebase AI**: Integrated AI capabilities for intelligent content analysis, auto-alignment, and creative layout suggestions.
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+### ⚡ Premium UI & Architecture
+- **Material 3 Design System**: Beautiful dark mode and light mode aesthetics designed with Jetpack Compose.
+- **Room Database Storage**: Save draft projects locally and resume editing anytime.
 
+---
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+## 📲 Installation & Downloads
+
+You can download the latest compiled APK directly from the **Releases** section:
+
+👉 **[Download Latest APK (v1.1.0)](https://github.com/sunuoy/Collage-pro/releases)**
+
+---
+
+## 🛠️ Tech Stack & Architecture
+
+- **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose) with Material 3
+- **Language**: Kotlin
+- **Asynchronous Flow**: Kotlin Coroutines & Flow
+- **Image Loading**: Coil Compose
+- **Database**: Room Persistence Library
+- **Networking & AI**: Retrofit, Moshi, OkHttp, Firebase AI SDK (Gemini)
+- **CI/CD Automation**: GitHub Actions (Automated build artifacts & GitHub Releases)
+
+---
+
+## 👨‍💻 Local Development Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/sunuoy/Collage-pro.git
+   cd Collage-pro
+   ```
+
+2. **Configure Environment Variables:**
+   Create a `.env` file in the project root (refer to `.env.example`):
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+
+3. **Open and Run:**
+   - Open the project in **Android Studio (Ladybug or newer)**.
+   - Build and run on an Android Emulator (API 24+) or physical device.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ using Android Jetpack Compose and Gemini AI.</sub>
+</div>
