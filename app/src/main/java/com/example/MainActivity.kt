@@ -2243,6 +2243,25 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 16.sp
                     )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                        thickness = 0.5.dp
+                    )
+                    Text(
+                        text = "VERSIONING GUIDELINE",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = "• Major Changes: V 1.0.0\n• Medium Changes: V 0.1.0\n• Small Changes: V 0.0.1",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
 
