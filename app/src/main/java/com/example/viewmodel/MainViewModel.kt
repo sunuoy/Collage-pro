@@ -41,6 +41,12 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import org.json.JSONObject
+import java.io.IOException
+
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -57,6 +63,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Update check state
     var isCheckingUpdates by mutableStateOf(false)
     var updateMessage by mutableStateOf<String?>(null)
+    var updateAvailable by mutableStateOf(false)
+    var latestApkUrl by mutableStateOf<String?>(null)
+    var isDownloadingUpdate by mutableStateOf(false)
+    var downloadProgress by mutableStateOf(0f)
+    var latestVersionName by mutableStateOf<String?>(null)
+
 
     // Settings Options
     var highQualityExport by mutableStateOf(true)
@@ -1219,14 +1231,162 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Interactive GitHub Updates simulator
+    // Check GitHub releases for updates
     fun checkForGithubUpdates() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             isCheckingUpdates = true
             updateMessage = null
-            delay(1600)
-            isCheckingUpdates = false
-            updateMessage = "You have the latest version! Version v1.0.4 is fully up-to-date with the main repository on GitHub."
+            updateAvailable = false
+            latestApkUrl = null
+            
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url("https://api.github.com/repos/sunuoy/Collage-pro/releases/latest")
+                .header("User-Agent", "Collage-Pro-App")
+                .build()
+                
+            try {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException("Server returned error code: ${response.code}")
+                    }
+                    val body = response.body?.string() ?: throw IOException("Empty response body")
+                    val json = JSONObject(body)
+                    val latestVersion = json.optString("tag_name", "").trim()
+                    
+                    if (latestVersion.isEmpty()) {
+                        throw IOException("No version tag found in the release metadata")
+                    }
+                    
+                    val currentVersion = getCurrentVersionName()
+                    
+                    // Search assets for APK
+                    val assets = json.optJSONArray("assets")
+                    var apkUrl: String? = null
+                    if (assets != null) {
+                        for (i in 0 until assets.length()) {
+                            val asset = assets.getJSONObject(i)
+                            val name = asset.optString("name", "")
+                            if (name.endsWith(".apk")) {
+                                val url = asset.optString("browser_download_url")
+                                if (url.isNotEmpty()) {
+                                    apkUrl = url
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    
+                    withContext(Dispatchers.Main) {
+                        latestVersionName = latestVersion
+                        if (isNewerVersion(currentVersion, latestVersion)) {
+                            if (apkUrl != null) {
+                                latestApkUrl = apkUrl
+                                updateAvailable = true
+                                updateMessage = "Update available! Version $latestVersion is ready for download."
+                            } else {
+                                updateMessage = "New version $latestVersion is available, but no APK installer was found on GitHub."
+                            }
+                        } else {
+                            updateMessage = "You have the latest version! Version $currentVersion is fully up-to-date with GitHub."
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Check Update Error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    updateMessage = "Check failed: ${e.localizedMessage ?: "Unknown connection error"}"
+                }
+            } finally {
+                isCheckingUpdates = false
+            }
+        }
+    }
+
+    private fun getCurrentVersionName(): String {
+        return try {
+            val pInfo = getApplication<Application>().packageManager.getPackageInfo(getApplication<Application>().packageName, 0)
+            pInfo.versionName ?: "1.1"
+        } catch (e: Exception) {
+            "1.1"
+        }
+    }
+
+    private fun isNewerVersion(current: String, latest: String): Boolean {
+        val currClean = current.trim().lowercase().removePrefix("v").split(".")
+        val lateClean = latest.trim().lowercase().removePrefix("v").split(".")
+        val maxLen = maxOf(currClean.size, lateClean.size)
+        for (i in 0 until maxLen) {
+            val currPart = currClean.getOrNull(i)?.toIntOrNull() ?: 0
+            val latePart = lateClean.getOrNull(i)?.toIntOrNull() ?: 0
+            if (latePart > currPart) return true
+            if (currPart > latePart) return false
+        }
+        return false
+    }
+
+    fun downloadAndInstallUpdate(context: Context) {
+        val url = latestApkUrl ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            isDownloadingUpdate = true
+            downloadProgress = 0f
+            updateMessage = "Downloading update..."
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder().url(url).build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) throw IOException("Failed to download file: $response")
+                    val body = response.body ?: throw IOException("Response body is null")
+                    val contentLength = body.contentLength()
+                    
+                    val apkFile = File(context.cacheDir, "update.apk")
+                    if (apkFile.exists()) {
+                        apkFile.delete()
+                    }
+                    
+                    body.byteStream().use { inputStream ->
+                        FileOutputStream(apkFile).use { outputStream ->
+                            val buffer = ByteArray(4096)
+                            var bytesRead: Int
+                            var totalBytesRead = 0L
+                            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                                outputStream.write(buffer, 0, bytesRead)
+                                totalBytesRead += bytesRead
+                                if (contentLength > 0) {
+                                    downloadProgress = totalBytesRead.toFloat() / contentLength
+                                }
+                            }
+                        }
+                    }
+                    
+                    withContext(Dispatchers.Main) {
+                        updateMessage = "Download completed. Launching installer..."
+                        installApk(context, apkFile)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Download Error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    updateMessage = "Failed to download update: ${e.localizedMessage}"
+                }
+            } finally {
+                isDownloadingUpdate = false
+            }
+        }
+    }
+
+    private fun installApk(context: Context, file: File) {
+        try {
+            val authority = "${context.packageName}.fileprovider"
+            val uri = FileProvider.getUriForFile(context, authority, file)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Installation Error: ${e.message}", e)
+            Toast.makeText(context, "Failed to start installer: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
         }
     }
 }

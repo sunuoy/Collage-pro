@@ -2274,22 +2274,61 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Text("Querying GitHub releases catalog...", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                    } else if (viewModel.isDownloadingUpdate) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Downloading update...", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                Text("${(viewModel.downloadProgress * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { viewModel.downloadProgress },
+                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        }
                     } else {
                         viewModel.updateMessage?.let { msg ->
+                            val containerColor = if (viewModel.updateAvailable) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer
+                            val contentColor = if (viewModel.updateAvailable) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                            val icon = if (viewModel.updateAvailable) Icons.Filled.Info else Icons.Filled.Check
+                            
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .background(containerColor)
                                     .padding(12.dp)
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Filled.Check, "Checked", tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(text = msg, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Icon(icon, null, tint = contentColor, modifier = Modifier.size(16.dp).padding(top = 2.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = msg, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = contentColor)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
+                        }
+
+                        if (viewModel.updateAvailable) {
+                            Button(
+                                onClick = { viewModel.downloadAndInstallUpdate(context) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF0F823E),
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth().testTag("git_download_btn")
+                            ) {
+                                Icon(Icons.Filled.ArrowCircleDown, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Download and Install Update", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
 
                         Button(
@@ -2303,7 +2342,7 @@ fun SettingsScreen(
                         ) {
                             Icon(Icons.Filled.Refresh, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Check GitHub for Updates", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(if (viewModel.updateAvailable) "Check Again" else "Check GitHub for Updates", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
